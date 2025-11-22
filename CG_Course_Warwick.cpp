@@ -4,20 +4,20 @@
 #include <iostream>
 #include <cmath>
 #include <string>
+#include <vector>
+#include "GamesEngineeringBase.h"
 #define SQ(x) ((x)*(x))
+
+
+
+
 template<typename T>
 static T lerp(const T a, const T b, float t) {
     return a * (1.0f - t) + (b * t);
 }
 
-template <typename T>
-T max(T a, T b) {
-    return (a > b) ? a : b;
-}
-template <typename T>
-T min(T a, T b) {
-    return (a < b) ? a : b;
-}
+static const int canvasWidth = 800;
+static const int canvasHeight = 600;
 
 class Vec3 {
 public:
@@ -157,7 +157,7 @@ public:
     }
 };
 //vector functions
-float Dot(const Vec3& v1, const Vec3& v2) {
+float dot(const Vec3& v1, const Vec3& v2) {
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 class Vec4 {
@@ -167,8 +167,8 @@ public:
         struct { float x, y, z, w; };
     };
 
-    Vec4() : x(0), y(0), z(0), w(0) {}
-    Vec4(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
+    Vec4() : x(0), y(0), z(0), w(0) {}//useless
+    Vec4(float _x, float _y, float _z = 0, float _w = 0) : x(_x), y(_y), z(_z), w(_w) {}
 
     Vec4 operator+(const Vec4& pVec) const {
         return Vec4(v[0] + pVec.v[0], v[1] + pVec.v[1], v[2] + pVec.v[2], v[3] + pVec.v[3]);
@@ -291,6 +291,13 @@ public:
     std::string print2str() const {
         return std::string('(' + std::to_string(v[0]) + ',' + std::to_string(v[1]) + ',' +
             std::to_string(v[2]) + ',' + std::to_string(v[3]) + ')');
+    }
+    Vec4 dividebyw() {
+        if (w == 0) {
+            std::cout << "w is 0!" << std::endl;
+            return *this;
+        }
+        return Vec4(x / w, y / w, z / w, w);
     }
     Vec4 Max(const Vec4& v1, const Vec4& v2)
     {
@@ -438,6 +445,27 @@ public:
         inv[12] = m[3]; inv[13] = m[7]; inv[14] = m[11]; inv[15] = m[15];
         return inv;
     }
+    void toProjectionMatrix(float fov, float aspect, float _near, float _far) {
+        memset(m, 0, 16 * sizeof(float));
+        a[0][0] = 1 / (aspect * (tan(fov / 2)));//no pi
+        a[1][1] = 1 / (tan(fov / 2));
+        a[2][2] = _far / (_far - _near);
+        a[2][3] = -(_far * _near) / (_far - _near);
+        a[3][2] = 1;
+    }
+    void toLookAtMatrix(const Vec4& from, const Vec4& to, const Vec4& up ) {
+        memset(m, 0, 16 * sizeof(float));
+        Vec4 dir = (to - from) / (to - from).length();
+        Vec4 right = up.cross(dir);//only cross x,y,z. 
+        Vec4 realUp = dir.cross(right);//real up vector
+
+        a[0][0] = right.x;  a[0][1] = right.y;  a[0][2] = right.z;  a[0][3] = -(from.dot(right));
+        a[1][0] = realUp.x; a[1][1] = realUp.y; a[1][2] = realUp.z; a[1][3] = -(from.dot(realUp));
+        a[2][0] = dir.x;    a[2][1] = dir.y;    a[2][2] = dir.z;    a[2][3] = -(from.dot(dir));
+        a[3][3] = 1;
+
+
+    }
     float& operator[](const int index) {
         return m[index];
     }
@@ -445,6 +473,11 @@ public:
         return mul(matrix);
     }
 };
+//use pinhole camera
+Matrix proM;//The ProjectionMatrix of this camera
+float _near = 0.1;
+float _far = 100;
+
 //translation
 Vec4 Translation(const Vec4& v, float x, float y, float z) {
     Matrix m;
@@ -604,7 +637,7 @@ public:
 class Colour {
 public:
     float r, g, b, a;
-    Colour(float _r, float _g, float _b, float _a) : r(_r), g(_g), b(_b), a(_a) {}
+    Colour(float _r, float _g, float _b, float _a = 0.f) : r(_r), g(_g), b(_b), a(_a) {}
     Colour(unsigned char _r, unsigned char _g, unsigned char _b, unsigned char _a)
         : r(_r / 255.0f), g(_g / 255.0f), b(_b / 255.0f), a(_a / 255.0f) {
     }
@@ -620,7 +653,6 @@ public:
     Colour operator/(const float _a) const {
         return Colour(r / _a, g / _a, b / _a, a / _a);
     }
-
 };
 
 class ShadingFrame {
@@ -653,7 +685,9 @@ public:
             + v0[2] * (v1[0] * v2[1] - v1[1] * v2[0]);
     }
     Vec3 randomVector() {
-        return Vec3(rand() % 10 + 1, rand() % 10 + 1, rand() % 10 + 1);
+        return Vec3(static_cast<float>(rand() % 10 + 1), 
+            static_cast<float>(rand() % 10 + 1),
+            static_cast<float>(rand() % 10 + 1));
     }
     void print() const {
         std::cout << "orthonormal basis:" << std::endl;
@@ -662,47 +696,260 @@ public:
         v[2].print();
     }
 };
-//above undone
-int main() {
-    srand((unsigned)time(NULL));
-    ShadingFrame s(Vec3(1, 2, 3));
-    s.print();
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            std::cout << s.m[i][j] << '\t';
-        }
-        std::cout << std::endl;
+template<typename t>
+t simpleInterpolateAttribute(t a0, t a1, t a2, float alpha, float beta, float gamma) {
+    return (a0 * alpha) + (a1 * beta) + (a2 * gamma);
+}
+
+class Zbuffer {
+private:
+    float buffer[canvasWidth][canvasHeight];
+public:
+    Zbuffer() {
+        init();
     }
-    /*float a[4][4];
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            a[i][j] = rand() % 10;
-    Matrix m(a[0]);
-    m.print();
-    std::cout << "----------" << std::endl;
-    m.transpose().print();
-    float a[4][4];
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-            a[i][j] = rand() % 10;
-    Matrix m(a[0]);
-    m.print();
+    void init() {
+        for (int i = 0; i < canvasWidth; i++)
+            for(int j = 0; j < canvasHeight; j++)
+                buffer[i][j] = 1.0f;
+    }
+    bool zbufferUpdate(const int x, const int y, const float z) {
+        if (z > 0.0f && z < buffer[x][y]) {
+            buffer[x][y] = z;
+            return true;
+        }
+        else
+            return false;
+    }
+};
+Zbuffer zb;
 
-    ShadingFrame s(Vec3(1,2,3));
-    s.print();
+class Triangle {
+public:
+    union {
+        Vec4 v[3];
+        struct {
+            Vec4 a, b, c;
+        };
+    };
+    Vec4 tr, bl;
 
-    Quaternions a(1, 2, 3, 4);
-    Quaternions b(2, 3, 4, 5);
-    a.normalize();
-    b.normalize();
-    a.print();
-    b.print();
-    std::cout << "----------" << std::endl;
-    Quaternions c = a.slerp(b, 0.5);
-    c.print();
-    std::cout << "----------" << std::endl;
-    Vec3 v(4, 5, 6);
-    a.pointRotate(v).print();*/
+    Triangle(Vec4 _a, Vec4 _b, Vec4 _c) : a(_a), b(_b), c(_c) {}
+    float bary() {
+        float projArea = 0;
+        projArea = fabs((v[1].x - v[0].x) * (v[2].y - v[0].y) - (v[2].x - v[0].x) * (v[1].y - v[0].y));
+        return projArea;
+    }
+    float areaComputing() {
+        float projArea = bary();
+        float area = 1.0f / projArea;
+        return area;
+    }
 
+    float edgeFunction(const Vec4& v0, const Vec4& v1, const Vec4& p)//check if point in the area
+    {
+        return (((p.x - v0.x) * (v1.y - v0.y)) - ((v1.x - v0.x) * (p.y - v0.y)));
+    }
+    //no using clip, the bounding box may be larger if the triangle out of the screen
+    void findBounds(const Vec4& v0, const Vec4& v1, const Vec4& v2)
+    {
+        tr.x = min(max(max(v0.x, v1.x), v2.x), canvasWidth - 1);
+        tr.y = min(max(max(v0.y, v1.y), v2.y), canvasHeight - 1);
+        bl.x = max(min(min(v0.x, v1.x), v2.x), 0);
+        bl.y = max(min(min(v0.y, v1.y), v2.y), 0);
+    }
+    //using sutherlanHodgmanClip, return bounding box
+    void findBoundsClip(const std::vector<Vec4>& points) {
+        tr.x = 0;
+        tr.y = 0;
+        bl.x = canvasWidth - 1;
+        bl.y = canvasHeight - 1;
+        for (auto p : points) {
+            tr.x = max(tr.x, p.x);
+            tr.y = max(tr.y, p.y);
+            bl.x = min(bl.x, p.x);
+            bl.y = min(bl.y, p.y);
+        }
+        tr.x = min(tr.x, canvasWidth - 1);
+        tr.y = min(tr.y, canvasHeight - 1);
+        bl.x = max(bl.x, 0);
+        bl.y = max(bl.y, 0);
+    }
+    Vec4 intersection(const Vec4& v1, const Vec4& v2, const Vec4& p1, const Vec4& p2) {
+        //return v1-v2, a-b intersection
+        float A1 = v2.y - v1.y;
+        float B1 = v1.x - v2.x;
+        float C1 = A1 * v1.x + B1 * v1.y;
+
+        float A2 = p2.y - p1.y;
+        float B2 = p1.x - p2.x;
+        float C2 = A2 * p1.x + B2 * p2.y;
+
+        float det = A1 * B2 - A2 * B1;
+        Vec4 inter;
+        inter.x = (B2 * C1 - B1 * C2) / det;
+        inter.y = (A1 * C2 - A2 * C1) / det;
+        inter.w = 1;
+        return inter;
+    }
+    Vec4 intersection_Plane(const Vec4& v1, const Vec4& v2, const float planeDis) {
+        float t = (planeDis - v1.z) / (v2.z - v1.z);
+        return Vec4(v1.x + t * (v2.x - v1.x), v1.y + t * (v2.y - v1.y), planeDis, 1);
+    }
+    std::vector<Vec4> sutherlanHodgmanClip(const std::vector<Vec4>& vertexes, float planeDis, bool isFar = true) {
+        std::vector<Vec4> ret;
+        for (int i = 0; i < vertexes.size(); i++) {
+            Vec4 cur = vertexes[i];
+            Vec4 next = vertexes[(i + 1) % vertexes.size()];
+            bool curInside = isFar ? cur.z <= planeDis : cur.z >= planeDis;
+            bool nextInside = isFar ? next.z <= planeDis : next.z >= planeDis;
+            if (curInside && nextInside) {
+                ret.push_back(next);
+            }
+            else if (curInside && !nextInside) {
+                ret.push_back(intersection_Plane(cur, next, planeDis));
+            }
+            else if (!curInside && nextInside) {
+                ret.push_back(intersection_Plane(cur, next, planeDis));
+                ret.push_back(next);
+            }
+        }
+        return ret;
+    }
+    std::vector<Vec4> sutherlanHodgmanClip_Screen(const std::vector<Vec4>& vertexes) {//can use screen size
+        std::vector<Vec4> clipPolygon = { {0, 0}, {0, canvasHeight - 1}, {canvasWidth - 1, canvasHeight - 1}, {canvasWidth - 1, 0} };
+        //std::vector<Vec4> ret = {v[0], v[1], v[2]};
+        std::vector<Vec4> ret = vertexes;
+        for (int i = 0; i < clipPolygon.size(); i++) {
+            std::vector<Vec4> input = ret;
+            ret.clear();
+
+            Vec4 A = clipPolygon[i];
+            Vec4 B = clipPolygon[(i + 1) % clipPolygon.size()];
+
+            for (int j = 0; j < input.size(); j++) {
+                Vec4 P = input[j];
+                Vec4 Q = input[(j + 1) % input.size()];
+
+                bool P_inside = edgeFunction(A, B, P) >= 0 ? true : false;
+                bool Q_inside = edgeFunction(A, B, Q) >= 0 ? true : false;
+
+
+                if (P_inside && Q_inside) {
+                    ret.push_back(Q);
+                }
+                else if (P_inside && !Q_inside) {
+                    ret.push_back(intersection(P, Q, A, B));
+                }
+                else if (!P_inside && Q_inside) {
+                    ret.push_back(intersection(P, Q, A, B));
+                    ret.push_back(Q);
+                }
+            }
+        }
+        return ret;
+    }
+    void draw(GamesEngineeringBase::Window& canvas) {
+        // classic bounds
+        //findBounds(v[0], v[1], v[2]); 
+        
+        //clip by near plane and far plane should be here(before transforming to screen)
+        std::vector<Vec4> vertexes = { v[0], v[1], v[2] };
+        vertexes = sutherlanHodgmanClip(vertexes, _near, false);
+        vertexes = sutherlanHodgmanClip(vertexes, _far, true);
+        for (auto& v : vertexes) {
+            v = proM.mul(v).dividebyw();
+            v.x = ((v.x + 1) / 2) * canvasWidth; v.y = canvasHeight - ((v.y + 1) / 2) * canvasHeight;//make Y axis is up-towards in the screen(because Y axis is down in the screen)
+        }
+        //bounds after clipping screen(it does work when triangle out of the screen)
+        vertexes = sutherlanHodgmanClip_Screen(vertexes);
+        
+        findBoundsClip(vertexes);
+
+        v[0] = proM.mul(v[0]).dividebyw();
+        v[1] = proM.mul(v[1]).dividebyw();
+        v[2] = proM.mul(v[2]).dividebyw();
+
+        v[0].x = ((v[0].x + 1) / 2) * canvasWidth; v[0].y = canvasHeight - ((v[0].y + 1) / 2) * canvasHeight;//make Y axis is up-towards in the screen(because Y axis is down in the screen)
+        v[1].x = ((v[1].x + 1) / 2) * canvasWidth; v[1].y = canvasHeight - ((v[1].y + 1) / 2) * canvasHeight;
+        v[2].x = ((v[2].x + 1) / 2) * canvasWidth; v[2].y = canvasHeight - ((v[2].y + 1) / 2) * canvasHeight;
+
+        float area = areaComputing();
+        for (int y = (int)bl.y; y < (int)tr.y + 1; y++) {
+            for (int x = (int)bl.x; x < (int)tr.x + 1; x++) {
+                Vec4 p(x + 0.5f, y + 0.5f, 0);
+                // Compute triangle here
+                float alpha = edgeFunction(v[1], v[2], p);
+                float beta = edgeFunction(v[2], v[0], p);
+                float gamma = edgeFunction(v[0], v[1], p);
+
+                alpha *= area;
+                beta *= area;
+                gamma *= area;
+
+                if ((alpha > 0 && beta > 0 && gamma > 0)|| (alpha < 0 && beta < 0 && gamma < 0)) {
+                    //zbuffer
+                    p.z = alpha * v[0].z + beta * v[1].z + gamma * v[2].z;
+                    //std::cout << p.z << std::endl;
+                    if (zb.zbufferUpdate(x, y, p.z)) {
+                        Colour frag = simpleInterpolateAttribute(Colour(1.0f, 0, 0), Colour(0, 1.0f, 0), Colour(0, 0, 1.0f),
+                            alpha, beta, gamma);
+                        canvas.draw(x, y, frag.r * 255, frag.g * 255, frag.b * 255);
+                    }
+                    
+                }
+            }
+        }
+    }
+    Vec4& operator[](int index) {
+        return v[index];
+    }
+};
+
+//lab
+
+
+
+//lab end
+
+int main() {
+    GamesEngineeringBase::Window canvas;
+    canvas.create(canvasWidth, canvasHeight, "Example");
+    bool running = true;
+    //Set Matrix proM;
+    float aspect = static_cast<float>(canvasWidth) / canvasHeight;
+    proM.toProjectionMatrix(M_PI / 4, aspect, _near, _far);
+    //lab
+    //Zbuffer
+    
+    //lab end
+    while (running)
+    {
+        // Check for input (key presses or window events)
+        canvas.checkInput();
+
+        // Clear the window for the next frame rendering
+        canvas.clear();
+        zb.init();
+
+        //Triangle
+        Vec4 v1(0, 0.3, 1, 1);
+        Vec4 v2(-0.3, -0.3, 1, 1);
+        Vec4 v3(0.3, -0.3, 1, 1);
+
+        Vec4 off(0, 0, 0, 0);
+        v1 += off;
+        v2 += off;
+        v3 += off;
+
+        Triangle tri(v1, v2, v3);
+
+        Triangle tri1(Vec4(0, 0.2, 0.5, 1), Vec4(-0.2, -0.8, 2, 1), Vec4(0.2, -0.8, 2, 1));
+
+        tri.draw(canvas);
+        tri1.draw(canvas);
+        // Display the frame on the screen. This must be called once the frame is finished in order to display the frame.
+        canvas.present();
+    }
     return 0;
 }
