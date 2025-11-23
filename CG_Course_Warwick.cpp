@@ -644,7 +644,7 @@ public:
 class Colour {
 public:
     float r, g, b, a;
-    Colour(float _r, float _g, float _b, float _a = 0.f) : r(_r), g(_g), b(_b), a(_a) {}
+    Colour(float _r = 0.f, float _g = 0.f, float _b = 0.f, float _a = 0.f) : r(_r), g(_g), b(_b), a(_a) {}
     Colour(unsigned char _r, unsigned char _g, unsigned char _b, unsigned char _a)
         : r(_r / 255.0f), g(_g / 255.0f), b(_b / 255.0f), a(_a / 255.0f) {
     }
@@ -707,6 +707,17 @@ template<typename t>
 t simpleInterpolateAttribute(t a0, t a1, t a2, float alpha, float beta, float gamma) {
     return (a0 * alpha) + (a1 * beta) + (a2 * gamma);
 }
+template<typename t>
+t perspectiveCorrectInterpolateAttribute(t a0, t a1, t a2, float v0_w, float v1_w, float v2_w,
+    float alpha, float beta, float gamma, float frag_w)
+{
+    t attrib[3];
+    attrib[0] = a0 * alpha * v0_w;
+    attrib[1] = a1 * beta * v1_w;
+    attrib[2] = a2 * gamma * v2_w;
+    return ((attrib[0] + attrib[1] + attrib[2]) / frag_w);
+}
+
 
 class Zbuffer {
 private:
@@ -740,7 +751,7 @@ public:
         };
     };
     Vec4 tr, bl;
-
+    Vec3 normal;
     Triangle(Vec4 _a, Vec4 _b, Vec4 _c) : a(_a), b(_b), c(_c) {}
     float bary() {
         float projArea = 0;
@@ -752,7 +763,13 @@ public:
         float area = 1.0f / projArea;
         return area;
     }
-
+    //return this triangle's normal vector and normalize it
+    Vec3 findNormal() {
+        Vec3 v1(v[0].x, v[0].y, v[0].z);
+        Vec3 v2(v[1].x, v[1].y, v[1].z);
+        Vec3 v3(v[2].x, v[2].y, v[2].z);
+        return ((v2 - v1).cross(v3 - v1).normalize());
+    }
     float edgeFunction(const Vec4& v0, const Vec4& v1, const Vec4& p)//check if point in the area
     {
         return (((p.x - v0.x) * (v1.y - v0.y)) - ((v1.x - v0.x) * (p.y - v0.y)));
@@ -856,7 +873,7 @@ public:
         }
         return ret;
     }
-    void draw(GamesEngineeringBase::Window& canvas) {
+    void draw(GamesEngineeringBase::Window& canvas, Colour colour) {
         // classic bounds
         //findBounds(); 
         
@@ -899,9 +916,17 @@ public:
                     p.z = fabs(alpha * v[0].z + beta * v[1].z + gamma * v[2].z);//fabs: sometimes the alpha beta and gamma are all nagetive
                     //std::cout << p.z << std::endl;
                     if (zb.zbufferUpdate(x, y, p.z)) {
-                        Colour frag = simpleInterpolateAttribute(Colour(1.0f, 0, 0), Colour(0, 1.0f, 0), Colour(0, 0, 1.0f),
-                            fabs(alpha), fabs(beta), fabs(gamma));
-                        canvas.draw(x, y, frag.r * 255, frag.g * 255, frag.b * 255);
+                        //simple interpolate attribute, may cause streching
+                        //Colour frag = simpleInterpolateAttribute(Colour(1.0f, 0, 0), Colour(0, 1.0f, 0), Colour(0, 0, 1.0f), fabs(alpha), fabs(beta), fabs(gamma));
+                        
+                        //using w for correcting barycentric coordinates
+                        /*float frag_w = ((alpha * v[0].w) + (beta * v[1].w) + (gamma * v[2].w));
+                        Colour frag = perspectiveCorrectInterpolateAttribute(Colour(1.0f, 0, 0), Colour(0, 1.0f, 0), Colour(0, 0, 1.0f), v[0].w, v[1].w, v[2].w,
+                            alpha, beta, gamma, frag_w);
+                        canvas.draw(x, y, frag.r * 255, frag.g * 255, frag.b * 255);*/
+
+                        //using constant colour
+                        canvas.draw(x, y, colour.r * 255, colour.g * 255, colour.b * 255);
                     }
                     
                 }
@@ -927,10 +952,17 @@ public:
         for (int i = 0; i < verteces.size() / 3; i++) {
             Vec4 v[3] = { verteces[i * 3], verteces[i * 3 + 1],verteces[i * 3 + 2] };
             Triangle tri(lookupM.mul(v[0]) + offset, lookupM.mul(v[1]) + offset, lookupM.mul(v[2]) + offset);
-            //Triangle tri(v[0] + offset, v[1] + offset, v[2] + offset);
-            tri.draw(canvas);
+            tri.draw(canvas, diffusionLignt(tri));
         }
     
+    }
+    static Colour diffusionLignt(Triangle& tri) {
+        Vec3 omega_i = Vec3(1, 1, 0).normalize();
+        Vec3 N = tri.findNormal();
+        Colour rho(0, 1.0f, 0);
+        Colour L(1.0f, 1.0f, 1.0f);
+        Colour ambient(0.5f, 0.5f, 0.5f);
+        return (rho / M_PI) * (L * max(omega_i.dot(N), 0.0f) + ambient);
     }
 };
 
