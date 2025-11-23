@@ -874,7 +874,7 @@ public:
         return ret;
     }
     void draw(GamesEngineeringBase::Window& canvas, Colour colour) {
-        // classic bounds
+        // classic bounds, may return larger bounding box in some case
         //findBounds(); 
         
         //clip by near plane and far plane should be here(before transforming to screen)
@@ -894,7 +894,7 @@ public:
         v[1] = proM.mul(v[1]).dividebyw();
         v[2] = proM.mul(v[2]).dividebyw();
 
-        v[0].x = ((v[0].x + 1) / 2) * canvasWidth; v[0].y = canvasHeight - ((v[0].y + 1) / 2) * canvasHeight;//make Y axis is up-towards in the screen(because Y axis is down in the screen)
+        v[0].x = ((v[0].x + 1) / 2) * canvasWidth; v[0].y = canvasHeight - ((v[0].y + 1) / 2) * canvasHeight;
         v[1].x = ((v[1].x + 1) / 2) * canvasWidth; v[1].y = canvasHeight - ((v[1].y + 1) / 2) * canvasHeight;
         v[2].x = ((v[2].x + 1) / 2) * canvasWidth; v[2].y = canvasHeight - ((v[2].y + 1) / 2) * canvasHeight;
 
@@ -944,20 +944,34 @@ public:
 class Draw3D {
 public:
     Draw3D(){}
+    static void loadVerteces(const std::string& filename, std::vector<Vec4>& vertexList, GEMLoader::GEMModelLoader& loader) {
+        std::vector<GEMLoader::GEMMesh> gemmeshes;
+        loader.load(filename, gemmeshes);
+        for (int i = 0; i < gemmeshes.size(); i++) {
+
+            for (int j = 0; j < gemmeshes[i].indices.size(); j++) {
+                GEMLoader::GEMVec3 vec;
+                int index = gemmeshes[i].indices[j];
+                vec = gemmeshes[i].verticesStatic[index].position;
+                vertexList.push_back(Vec4(vec.x, vec.y, vec.z, 1));
+            }
+        }
+    }
     static void drawByVerteces(GamesEngineeringBase::Window& canvas, const std::vector<Vec4>& verteces, const Vec4& offset, Matrix& lookupM) {
         if (verteces.size() % 3 != 0) {//triangle
             std::cout << "verteces num wrong!" << std::endl;
             return;
         }
         for (int i = 0; i < verteces.size() / 3; i++) {
-            Vec4 v[3] = { verteces[i * 3], verteces[i * 3 + 1],verteces[i * 3 + 2] };
-            Triangle tri(lookupM.mul(v[0]) + offset, lookupM.mul(v[1]) + offset, lookupM.mul(v[2]) + offset);
-            tri.draw(canvas, diffusionLignt(tri));
+            Vec4 v[3] = { verteces[i * 3] + offset, verteces[i * 3 + 1] + offset,verteces[i * 3 + 2] + offset };
+            Triangle tri(lookupM.mul(v[0]), lookupM.mul(v[1]), lookupM.mul(v[2]));
+            tri.draw(canvas, diffusionLignt(tri, lookupM));
         }
     
     }
-    static Colour diffusionLignt(Triangle& tri) {
-        Vec3 omega_i = Vec3(1, 1, 0).normalize();
+    static Colour diffusionLignt(Triangle& tri, Matrix& lookupM) {
+        //Vec3 omega_i = Vec3(1, 1, 0).normalize();
+        Vec3 omega_i = lookupM.mulVec(Vec3(1, 1, 0)).normalize();//rotate the camera, light ray should not change its vector in world space
         Vec3 N = tri.findNormal();
         Colour rho(0, 1.0f, 0);
         Colour L(1.0f, 1.0f, 1.0f);
@@ -974,35 +988,16 @@ public:
 
 int main() {
     GamesEngineeringBase::Window canvas;
-    canvas.create(canvasWidth, canvasHeight, "Example");
-    bool running = true;
-    //Set Matrix proM;
-    float aspect = static_cast<float>(canvasWidth) / canvasHeight;
-    proM = Matrix::projectionMatrix(M_PI / 4, aspect, _near, _far);
-
-    /*Matrix lookatM;
-    lookatM.toLookAtMatrix(Vec4(0,0,-10,1), Vec4(0, 0, 1, 1), Vec4(0, 1, 0, 1));
-    lookatM.print();*/
-    //lab
-    Quaternions q1(0, Vec3(0, 1, 0));
-    Quaternions q2(M_PI * 2 - 0.01f, Vec3(0, 1, 0));
-
-    
-
-    std::vector<GEMLoader::GEMMesh> gemmeshes;
+    canvas.create(canvasWidth, canvasHeight, "Test");
+    proM = Matrix::projectionMatrix(M_PI / 4, static_cast<float>(canvasWidth) / canvasHeight, _near, _far);
     GEMLoader::GEMModelLoader loader;
-    loader.load("Resources/bunny.gem", gemmeshes);
-    std::vector<Vec4> vertexList;
-    for (int i = 0; i < gemmeshes.size(); i++) {
-        
-        for (int j = 0; j < gemmeshes[i].indices.size(); j++) {
-            GEMLoader::GEMVec3 vec;
-            int index = gemmeshes[i].indices[j];
-            vec = gemmeshes[i].verticesStatic[index].position;
-            vertexList.push_back(Vec4(vec.x, vec.y, vec.z, 1));
-        }
-    }
+    bool running = true;
 
+    std::vector<Vec4> bunnyVertexList;
+    Draw3D::loadVerteces("Resources/bunny.gem", bunnyVertexList, loader);
+
+    std::vector<Vec4> cubeVertexList;
+    Draw3D::loadVerteces("Resources/cube.gem", cubeVertexList, loader);
     Matrix viewM;
     float radius = 0.5f;
     float t = 0.0f;
@@ -1019,11 +1014,12 @@ int main() {
         t += 0.05;
         Vec4 from = Vec4(radius * cosf(t), 0, radius * sinf(t), 1);
 
-        viewM = Matrix::lookAtMatrix(from, Vec4(0, 0, 0, 1), Vec4(0, 1, 0, 1));
+        viewM = Matrix::lookAtMatrix(from, Vec4(0, 0, 0, 1), Vec4(0, 1, 0, 1));//looking (0,0,0)
 
-        Vec4 offset(0, -0.1, 0, 0);
-        Draw3D::drawByVerteces(canvas, vertexList, offset, viewM);
+        Draw3D::drawByVerteces(canvas, bunnyVertexList, Vec4(0, -0.1, 0, 0), viewM);
         
+        Draw3D::drawByVerteces(canvas, cubeVertexList, Vec4(1, 1, 5, 0), viewM);
+
         // Display the frame on the screen. This must be called once the frame is finished in order to display the frame.
         canvas.present();
     }
