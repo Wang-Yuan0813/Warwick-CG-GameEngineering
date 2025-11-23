@@ -1,10 +1,11 @@
 Warwick CG Notes
 =============
 
-a basic learning notes
+a simple&basic learning notes
 ------------
 
-_2025/11/22_
+<details>
+<summary>2025/11/22</summary>
 
 add **Zbuffer**
 ```cpp
@@ -17,6 +18,7 @@ bool zbufferUpdate(const int x, const int y, const float z) {
         return false;
 }
 ```
+
 **Sutherland-Hodgman Algorithm**(for plane near and far)
 ```cpp
 std::vector<Vec4> sutherlanHodgmanClip(const std::vector<Vec4>& vertexes, float planeDis, bool isFar = true) {
@@ -41,10 +43,12 @@ std::vector<Vec4> sutherlanHodgmanClip(const std::vector<Vec4>& vertexes, float 
 }
 ```
 using **quaternion** to implement rotation functionality
+</details>
 
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Example/1122.gif)
 
-_2025/11/23_
+<details>
+<summary>2025/11/23</summary>
 
 use **Lookup Matrix** to simlify the rotating operation.
 
@@ -63,9 +67,25 @@ static void drawByVerteces(GamesEngineeringBase::Window& canvas, const std::vect
         //Triangle tri(v[0] + offset, v[1] + offset, v[2] + offset);
         tri.draw(canvas);
     }
-
 }
 ```
-Will update diffuse lighting later.
+
+Function below can simulate diffusion light to a model. 
+
+Because light simulation needs triangle's normal vertex to calculate color intensity, so I added a Vec3 object in class Triangle named normal and also the relative function.
+
+```cpp
+static Colour diffusionLignt(Triangle& tri) {
+    Vec3 omega_i = Vec3(1, 1, 0).normalize();
+    Vec3 N = tri.findNormal();
+    Colour rho(0, 1.0f, 0);
+    Colour L(1.0f, 1.0f, 1.0f);
+    Colour ambient(0.5f, 0.5f, 0.5f);
+    return (rho / M_PI) * (L * max(omega_i.dot(N), 0.0f) + ambient);
+}
+```
+</details>
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Example/1123_1.gif)
 
 
