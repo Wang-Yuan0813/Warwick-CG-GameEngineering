@@ -121,10 +121,10 @@ public:
     float dot(const Vec3& pVec) const {
         return v[0] * pVec.v[0] + v[1] * pVec.v[1] + v[2] * pVec.v[2];
     }
-    Vec3 cross(const Vec3& v1) {
+    Vec3 cross(const Vec3& v1) const {
         return Vec3(v1.v[1] * v[2] - v1.v[2] * v[1],
-            v1.v[2] * v[0] - v1.v[0] * v[2],
-            v1.v[0] * v[1] - v1.v[1] * v[0]);
+                    v1.v[2] * v[0] - v1.v[0] * v[2],
+                    v1.v[0] * v[1] - v1.v[1] * v[0]);
     }
     void print() const {
         std::cout << '(' << v[0] << ',' << v[1] << ',' << v[2] << ')' << std::endl;
@@ -278,9 +278,9 @@ public:
     // Cross uses xyz, w set to 0
     Vec4 cross(const Vec4& v1) const {
         return Vec4(v1.v[1] * v[2] - v1.v[2] * v[1],
-            v1.v[2] * v[0] - v1.v[0] * v[2],
-            v1.v[0] * v[1] - v1.v[1] * v[0],
-            0.0f);
+                    v1.v[2] * v[0] - v1.v[0] * v[2],
+                    v1.v[0] * v[1] - v1.v[1] * v[0],
+                    0.0f);
     }
     void print() const {
         std::cout << '(' << v[0] << ',' << v[1] << ',' << v[2] << ',' << v[3] << ')' << std::endl;
@@ -452,12 +452,12 @@ public:
         proM.a[3][2] = 1;
         return proM;
     }
-    static Matrix lookAtMatrix(const Vec4& from, const Vec4& to, const Vec4& up ) {
+    static Matrix lookAtMatrix(const Vec3& from, const Vec3& to, const Vec3& up ) {
         Matrix lookat;
         memset(lookat.m, 0, 16 * sizeof(float));
-        Vec4 dir = (to - from) / (to - from).length();
-        Vec4 right = up.cross(dir);//only cross x,y,z. 
-        Vec4 realUp = dir.cross(right);//real up vector
+        Vec3 dir = (to - from) / (to - from).length();
+        Vec3 right = up.cross(dir);//only cross x,y,z. 
+        Vec3 realUp = dir.cross(right);//real up vector
          
         lookat.a[0][0] = right.x;  lookat.a[0][1] = right.y;  lookat.a[0][2] = right.z;  lookat.a[0][3] = -(from.dot(right));
         lookat.a[1][0] = realUp.x; lookat.a[1][1] = realUp.y; lookat.a[1][2] = realUp.z; lookat.a[1][3] = -(from.dot(realUp));
@@ -972,6 +972,7 @@ public:
     static Colour diffusionLignt(Triangle& tri, Matrix& lookupM) {
         //Vec3 omega_i = Vec3(1, 1, 0).normalize();
         Vec3 omega_i = lookupM.mulVec(Vec3(1, 1, 0)).normalize();//rotate the camera, light ray should not change its vector in world space
+        //omega_i.print();
         Vec3 N = tri.findNormal();
         Colour rho(0, 1.0f, 0);
         Colour L(1.0f, 1.0f, 1.0f);
@@ -1012,13 +1013,14 @@ int main() {
         zb.init();
         //lookat matrix
         t += 0.05;
-        Vec4 from = Vec4(radius * cosf(t), 0, radius * sinf(t), 1);
 
-        viewM = Matrix::lookAtMatrix(from, Vec4(0, 0, 0, 1), Vec4(0, 1, 0, 1));//looking (0,0,0)
+        Vec3 from = Vec3(radius * cosf(t), 0, radius * sinf(t));
+        viewM = Matrix::lookAtMatrix(from, Vec3(0, 0, 0), Vec3(0, 1, 0));//looking (0,0,0)
 
-        Draw3D::drawByVerteces(canvas, bunnyVertexList, Vec4(0, -0.1, 0, 0), viewM);
+
+        Draw3D::drawByVerteces(canvas, bunnyVertexList, Vec4(0, -0.1, 0), viewM);
         
-        Draw3D::drawByVerteces(canvas, cubeVertexList, Vec4(1, 1, 5, 0), viewM);
+        Draw3D::drawByVerteces(canvas, cubeVertexList, Vec4(10, 0, 0), viewM);
 
         // Display the frame on the screen. This must be called once the frame is finished in order to display the frame.
         canvas.present();
