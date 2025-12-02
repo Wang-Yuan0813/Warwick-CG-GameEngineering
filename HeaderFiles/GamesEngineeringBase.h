@@ -46,6 +46,19 @@ SOFTWARE.
 // Stop warnings about possible NULL values for buffer and backbuffer. This should work on any modern hardware.
 #pragma warning( disable : 6387)
 
+
+//template <typename T>
+//T min(T a, T b) {
+//	return (a < b) ? a : b;
+//}
+//
+//
+//template <typename T>
+//T max(T a, T b) {
+//	return (a > b) ? a : b;
+//}
+
+
 // Define the namespace to encapsulate the library's classes
 namespace GamesEngineeringBase
 {

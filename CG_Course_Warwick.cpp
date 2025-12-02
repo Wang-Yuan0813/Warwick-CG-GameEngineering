@@ -1,20 +1,21 @@
-// CG_Day1.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
 #define _USE_MATH_DEFINES
 #include <iostream>
 #include <cmath>
 #include <string>
 #include <vector>
-#include "GamesEngineeringBase.h"
-#include "GEMLoader.h"
-#define SQ(x) ((x)*(x))
-template<typename T>
-static T lerp(const T a, const T b, float t) {
-    return a * (1.0f - t) + (b * t);
-}
+#include <fstream>
+#include <sstream>
+#include <unordered_map>
 
-static const int canvasWidth = 800;
-static const int canvasHeight = 600;
+#include "HeaderFiles/window.h"
+#include "HeaderFiles/Core.h"
+#include "HeaderFiles/GamesEngineeringBase.h"
+#include "HeaderFiles/GEMLoader.h"
+
+#define SQ(x) ((x)*(x))
+
+static const int canvasWidth = 1024;
+static const int canvasHeight = 1024;
 
 class Vec3 {
 public:
@@ -123,8 +124,8 @@ public:
     }
     Vec3 cross(const Vec3& v1) const {
         return Vec3(v1.v[1] * v[2] - v1.v[2] * v[1],
-                    v1.v[2] * v[0] - v1.v[0] * v[2],
-                    v1.v[0] * v[1] - v1.v[1] * v[0]);
+            v1.v[2] * v[0] - v1.v[0] * v[2],
+            v1.v[0] * v[1] - v1.v[1] * v[0]);
     }
     void print() const {
         std::cout << '(' << v[0] << ',' << v[1] << ',' << v[2] << ')' << std::endl;
@@ -153,10 +154,6 @@ public:
         return min(x, min(y, z));
     }
 };
-//vector functions
-float dot(const Vec3& v1, const Vec3& v2) {
-    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-}
 class Vec4 {
 public:
     union {
@@ -278,9 +275,9 @@ public:
     // Cross uses xyz, w set to 0
     Vec4 cross(const Vec4& v1) const {
         return Vec4(v1.v[1] * v[2] - v1.v[2] * v[1],
-                    v1.v[2] * v[0] - v1.v[0] * v[2],
-                    v1.v[0] * v[1] - v1.v[1] * v[0],
-                    0.0f);
+            v1.v[2] * v[0] - v1.v[0] * v[2],
+            v1.v[0] * v[1] - v1.v[1] * v[0],
+            0.0f);
     }
     void print() const {
         std::cout << '(' << v[0] << ',' << v[1] << ',' << v[2] << ',' << v[3] << ')' << std::endl;
@@ -319,7 +316,26 @@ public:
         return min(x, min(y, min(z, w)));
     }
 };
-
+class Colour {
+public:
+    float r, g, b, a;
+    Colour(float _r = 0.f, float _g = 0.f, float _b = 0.f, float _a = 0.f) : r(_r), g(_g), b(_b), a(_a) {}
+    Colour(unsigned char _r, unsigned char _g, unsigned char _b, unsigned char _a)
+        : r(_r / 255.0f), g(_g / 255.0f), b(_b / 255.0f), a(_a / 255.0f) {
+    }
+    Colour operator+(const Colour& c) const {
+        return Colour(c.r + r, c.g + g, c.b + b, c.a + a);
+    }
+    Colour operator*(const Colour& c) const {
+        return Colour(c.r * r, c.g * g, c.b * b, c.a * a);
+    }
+    Colour operator*(const float _a) const {
+        return Colour(r * _a, g * _a, b * _a, a * _a);
+    }
+    Colour operator/(const float _a) const {
+        return Colour(r / _a, g / _a, b / _a, a / _a);
+    }
+};
 class Matrix {
 public:
     union {
@@ -452,13 +468,13 @@ public:
         proM.a[3][2] = 1;
         return proM;
     }
-    static Matrix lookAtMatrix(const Vec3& from, const Vec3& to, const Vec3& up ) {
+    static Matrix lookAtMatrix(const Vec3& from, const Vec3& to, const Vec3& up) {
         Matrix lookat;
         memset(lookat.m, 0, 16 * sizeof(float));
         Vec3 dir = (to - from) / (to - from).length();
         Vec3 right = up.cross(dir);//only cross x,y,z. 
         Vec3 realUp = dir.cross(right);//real up vector
-         
+
         lookat.a[0][0] = right.x;  lookat.a[0][1] = right.y;  lookat.a[0][2] = right.z;  lookat.a[0][3] = -(from.dot(right));
         lookat.a[1][0] = realUp.x; lookat.a[1][1] = realUp.y; lookat.a[1][2] = realUp.z; lookat.a[1][3] = -(from.dot(realUp));
         lookat.a[2][0] = dir.x;    lookat.a[2][1] = dir.y;    lookat.a[2][2] = dir.z;    lookat.a[2][3] = -(from.dot(dir));
@@ -473,557 +489,518 @@ public:
         return mul(matrix);
     }
 };
-//use pinhole camera
 Matrix proM;//The ProjectionMatrix of this camera
 float _near = 0.1;
-float _far = 100;
-
-//translation
-Vec4 Translation(const Vec4& v, float x, float y, float z) {
-    Matrix m;
-    m.m[3] = x; m.m[7] = y; m.m[11] = z;
-    return m.mul(v);
-}
-//rotation
-Vec4 RotateX(const Vec4& v, float theta) {
-    return Vec4(
-        (v.x + v.y * 0 + v.z * 0),
-        (v.y * cos(theta) - v.z * sin(theta)),
-        (v.y * sin(theta) + v.z * cos(theta)),
-        v.w);
-}
-Vec4 RotateY(const Vec4& v, float theta) {
-    return Vec4(
-        (v.x * cos(theta) + v.y * 0 + v.z * sin(theta)),
-        (v.x * 0 + v.y * 1 + v.z * 0),
-        (-v.x * sin(theta) + v.y * 0 + v.z * cos(theta)),
-        v.w);
-}
-Vec4 RotateZ(const Vec4& v, float theta) {
-    return Vec4(
-        (v.x * cos(theta) - v.y * sin(theta) + v.z * 0),
-        (v.x * sin(theta) + v.y * cos(theta) + v.z * 0),
-        (v.x * 0 + v.y * 0 + v.z * 1),
-        v.w);
-}
-//scaling
-Vec4 Scaling(const Vec4& v, float x, float y, float z) {
-    Matrix m;
-    m.m[0] = x; m.m[5] = y; m.m[10] = z;
-    return m.mul(v);
-}
-class SphericalCoordinates {
-public:
-    float theta;
-    float phi;
-    float r;
-    SphericalCoordinates(Vec3 v, bool isZup = true) {//z up, for shading
-        if (isZup) {
-            theta = acosf(v.z);
-            phi = atan2f(v.y, v.x);
-            r = 1;
-        }
-        else {
-            theta = acosf(v.y);
-            phi = atan2f(v.z, v.x);
-            r = 1;
-        }
-    }
-    Vec3 convertZup() const {
-        return Vec3(r * sin(theta) * cos(phi), r * sin(theta) * sin(phi), r * cos(theta));
-    }
-    Vec3 convertYup() const {
-        return Vec3(r * sin(theta) * cos(phi), r * cos(theta), r * sin(theta) * sin(phi));
-    }
-};
-
-
-class Quaternions {
-public:
-    union {//q = d + ai + bj + ck
-        struct {
-            float a;
-            float b;
-            float c;
-            float d;
-        };
-        float q[4];
-    };
-    Quaternions() : a(0), b(0), c(0), d(0) {}
-    Quaternions(float _a, float _b, float _c, float _d) : a(_a), b(_b), c(_c), d(_d) {}
-    Quaternions(float theta, Vec3 dir) {
-        d = cosf(theta / 2);
-        dir = dir.normalize();
-        a = dir.x * sinf(theta / 2);
-        b = dir.y * sinf(theta / 2);
-        c = dir.z * sinf(theta / 2);
-    }
-    Matrix toMatrix() const {
-        float aa = a * a, ab = a * b, ac = a * c;
-        float bb = b * b, bc = b * c, cc = c * c;
-        float da = d * a, db = d * b, dc = d * c;
-        Matrix m;
-        m[0] = 1 - 2 * (bb + cc); m[1] = 2 * (ab - dc); m[2] = 2 * (ac + db); m[3] = 0;
-        m[4] = 2 * (ab + dc); m[5] = 1 - 2 * (aa + cc); m[6] = 2 * (bc - da); m[7] = 0;
-        m[8] = 2 * (ac - db); m[9] = 2 * (bc + da); m[10] = 1 - 2 * (aa + bb); m[11] = 0;
-        m[12] = m[13] = m[14] = 0; m[15] = 1;
-        return m;
-    }
-    float magnitude() const {
-        return sqrtf(SQ(a) + SQ(b) + SQ(c) + SQ(d));
-    }
-    float magnitudeSquare() const {
-        return SQ(a) + SQ(b) + SQ(c) + SQ(d);
-    }
-    void normalize() {
-        float m = magnitude();
-        *this = *this / m;
-    }
-    Quaternions conjugate() const {
-        return Quaternions(-a, -b, -c, d);
-    }
-    Quaternions inverse() const {
-        float m2 = magnitudeSquare();
-        return Quaternions(-a / m2, -b / m2, -c / m2, d / m2);
-    }
-    Quaternions slerp(const Quaternions& q, float t) const {
-        Quaternions res;
-        if (t < 0 || t > 1) {
-            std::cout << "slerp error, invalid t!!" << std::endl;
-            return res;
-        }
-        float theta = findAngle(q);
-        //std::cout << cosf(theta) << std::endl;
-        float q1_co = sinf(theta * (1 - t)) / sinf(theta);
-        float q2_co = sinf(theta * t) / sinf(theta);
-        res.a = q1_co * a + q2_co * q.a;
-        res.b = q1_co * b + q2_co * q.b;
-        res.c = q1_co * c + q2_co * q.c;
-        res.d = q1_co * d + q2_co * q.d;
-        return res;
-    }
-    Vec3 pointRotate(const Vec3& v) {
-        Quaternions p(v.v[0], v.v[1], v.v[2], 0);
-        p = *this * p * conjugate();
-        return Vec3(p.a, p.b, p.c);
-    }
-    float dot(const Quaternions& q) const {
-        return a * q.a + b * q.b + c * q.c + d * q.d;
-    }
-    float findAngle(const Quaternions& q) const {
-        return acosf(dot(q));
-    }
-    Quaternions operator+(const Quaternions& q) const {
-        return Quaternions(a + q.a, b + q.b, c + q.c, d + q.d);
-    }
-    Quaternions operator+(const float val) const {
-        return Quaternions(a + val, b + val, c + val, d + val);
-    }
-    Quaternions operator-(const Quaternions& q) const {
-        return Quaternions(a - q.a, b - q.b, c - q.c, d - q.d);
-    }
-    Quaternions operator-(const float val) const {
-        return Quaternions(a - val, b - val, c - val, d - val);
-    }
-    Quaternions operator-() const {
-        return Quaternions(-a, -b, -c, -d);
-    }
-    Quaternions operator*(const Quaternions& q) const {
-        return Quaternions(d * q.a + a * q.d + b * q.c - c * q.b,
-            d * q.b - a * q.c + b * q.d + c * q.a,
-            d * q.c + a * q.b - b * q.a + c * q.d,
-            d * q.d - a * q.a - b * q.b - c * q.c);
-    }
-    Quaternions operator/(const float val) const {
-        return Quaternions(a / val, b / val, c / val, d / val);
-    }
-    void print() const {
-        std::cout << '(' << a << ',' << b << ',' << c << ',' << d << ')' << std::endl;
-    }
-};
-class Colour {
-public:
-    float r, g, b, a;
-    Colour(float _r = 0.f, float _g = 0.f, float _b = 0.f, float _a = 0.f) : r(_r), g(_g), b(_b), a(_a) {}
-    Colour(unsigned char _r, unsigned char _g, unsigned char _b, unsigned char _a)
-        : r(_r / 255.0f), g(_g / 255.0f), b(_b / 255.0f), a(_a / 255.0f) {
-    }
-    Colour operator+(const Colour& c) const {
-        return Colour(c.r + r, c.g + g, c.b + b, c.a + a);
-    }
-    Colour operator*(const Colour& c) const {
-        return Colour(c.r * r, c.g * g, c.b * b, c.a * a);
-    }
-    Colour operator*(const float _a) const {
-        return Colour(r * _a, g * _a, b * _a, a * _a);
-    }
-    Colour operator/(const float _a) const {
-        return Colour(r / _a, g / _a, b / _a, a / _a);
-    }
-};
-
-class ShadingFrame {
-public:
-    union {
-        Vec3 v[3];
-        struct { Vec3 i, j, k; };
-        float m[3][3];
-    };
-    ShadingFrame(Vec3 _v) {
-        _v = _v.normalize();
-        //create vectors linearly independent
-        Vec3 v1, v2;
-        do {
-            v1 = randomVector();
-            v2 = randomVector();
-        } while (fabs(determinant3x3(_v, v1, v2)) < 1e-9);
-        //Gram-Schmidt
-        v[0] = _v;
-        v[1] = v1 - (v[0] * (v1.dot(v[0]) / v[0].dot(v[0])));
-        v[2] = v2 - (v[0] * (v2.dot(v[0]) / v[0].dot(v[0])));
-        v[2] = v[2] - (v[1] * (v[2].dot(v[1]) / v[1].dot(v[1])));
-        //normlize        
-        v[1] = v[1].normalize();
-        v[2] = v[2].normalize();
-    }
-    float determinant3x3(Vec3& v0, Vec3& v1, Vec3& v2) {
-        return v0[0] * (v1[1] * v2[2] - v1[2] * v2[1])
-            - v0[1] * (v1[0] * v2[2] - v1[2] * v2[0])
-            + v0[2] * (v1[0] * v2[1] - v1[1] * v2[0]);
-    }
-    Vec3 randomVector() {
-        return Vec3(static_cast<float>(rand() % 10 + 1), 
-            static_cast<float>(rand() % 10 + 1),
-            static_cast<float>(rand() % 10 + 1));
-    }
-    void print() const {
-        std::cout << "orthonormal basis:" << std::endl;
-        v[0].print();
-        v[1].print();
-        v[2].print();
-    }
-};
-template<typename t>
-t simpleInterpolateAttribute(t a0, t a1, t a2, float alpha, float beta, float gamma) {
-    return (a0 * alpha) + (a1 * beta) + (a2 * gamma);
-}
-template<typename t>
-t perspectiveCorrectInterpolateAttribute(t a0, t a1, t a2, float v0_w, float v1_w, float v2_w,
-    float alpha, float beta, float gamma, float frag_w)
+float _far = 1000;
+struct PRIM_VERTEX
 {
-    t attrib[3];
-    attrib[0] = a0 * alpha * v0_w;
-    attrib[1] = a1 * beta * v1_w;
-    attrib[2] = a2 * gamma * v2_w;
-    return ((attrib[0] + attrib[1] + attrib[2]) / frag_w);
-}
-
-
-class Zbuffer {
-private:
-    float buffer[canvasWidth][canvasHeight];
-public:
-    Zbuffer() {
-        init();
-    }
-    void init() {
-        for (int i = 0; i < canvasWidth; i++)
-            for(int j = 0; j < canvasHeight; j++)
-                buffer[i][j] = 1.0f;
-    }
-    bool zbufferUpdate(const int x, const int y, const float z) {
-        if (z > 0.0f && z < buffer[x][y]) {
-            buffer[x][y] = z;
-            return true;
-        }
-        else
-            return false;
-    }
+    Vec3 position;
+    Colour colour;
 };
-Zbuffer zb;
-
-class Triangle {
-public:
-    union {
-        Vec4 v[3];
-        struct {
-            Vec4 a, b, c;
-        };
-    };
-    Vec4 tr, bl;
+struct STATIC_VERTEX
+{
+    Vec3 pos;
     Vec3 normal;
-    Triangle(Vec4 _a, Vec4 _b, Vec4 _c) : a(_a), b(_b), c(_c) {}
-    float bary() {
-        float projArea = 0;
-        projArea = fabs((v[1].x - v[0].x) * (v[2].y - v[0].y) - (v[2].x - v[0].x) * (v[1].y - v[0].y));
-        return projArea;
-    }
-    float areaComputing() {
-        float projArea = bary();
-        float area = 1.0f / projArea;
-        return area;
-    }
-    //return this triangle's normal vector and normalize it
-    Vec3 findNormal() {
-        Vec3 v1(v[0].x, v[0].y, v[0].z);
-        Vec3 v2(v[1].x, v[1].y, v[1].z);
-        Vec3 v3(v[2].x, v[2].y, v[2].z);
-        return ((v2 - v1).cross(v3 - v1).normalize());
-    }
-    float edgeFunction(const Vec4& v0, const Vec4& v1, const Vec4& p)//check if point in the area
-    {
-        return (((p.x - v0.x) * (v1.y - v0.y)) - ((v1.x - v0.x) * (p.y - v0.y)));
-    }
-    //no using clip, the bounding box may be larger if the triangle out of the screen
-    void findBounds()
-    {
-        tr.x = min(max(max(v[0].x, v[1].x), v[2].x), canvasWidth - 1);
-        tr.y = min(max(max(v[0].y, v[1].y), v[2].y), canvasHeight - 1);
-        bl.x = max(min(min(v[0].x, v[1].x), v[2].x), 0);
-        bl.y = max(min(min(v[0].y, v[1].y), v[2].y), 0);
-    }
-    //using sutherlanHodgmanClip, return bounding box
-    void findBoundsClip(const std::vector<Vec4>& points) {
-        tr.x = 0;
-        tr.y = 0;
-        bl.x = canvasWidth - 1;
-        bl.y = canvasHeight - 1;
-        for (auto p : points) {
-            tr.x = max(tr.x, p.x);
-            tr.y = max(tr.y, p.y);
-            bl.x = min(bl.x, p.x);
-            bl.y = min(bl.y, p.y);
-        }
-        tr.x = min(tr.x, canvasWidth - 1);
-        tr.y = min(tr.y, canvasHeight - 1);
-        bl.x = max(bl.x, 0);
-        bl.y = max(bl.y, 0);
-    }
-    Vec4 intersection(const Vec4& v1, const Vec4& v2, const Vec4& p1, const Vec4& p2) {
-        //return v1-v2, a-b intersection
-        float A1 = v2.y - v1.y;
-        float B1 = v1.x - v2.x;
-        float C1 = A1 * v1.x + B1 * v1.y;
-
-        float A2 = p2.y - p1.y;
-        float B2 = p1.x - p2.x;
-        float C2 = A2 * p1.x + B2 * p2.y;
-
-        float det = A1 * B2 - A2 * B1;
-        Vec4 inter;
-        inter.x = (B2 * C1 - B1 * C2) / det;
-        inter.y = (A1 * C2 - A2 * C1) / det;
-        inter.w = 1;
-        return inter;
-    }
-    Vec4 intersection_Plane(const Vec4& v1, const Vec4& v2, const float planeDis) {
-        float t = (planeDis - v1.z) / (v2.z - v1.z);
-        return Vec4(v1.x + t * (v2.x - v1.x), v1.y + t * (v2.y - v1.y), planeDis, 1);
-    }
-    std::vector<Vec4> sutherlanHodgmanClip(const std::vector<Vec4>& vertexes, float planeDis, bool isFar = true) {
-        std::vector<Vec4> ret;
-        for (int i = 0; i < vertexes.size(); i++) {
-            Vec4 cur = vertexes[i];
-            Vec4 next = vertexes[(i + 1) % vertexes.size()];
-            bool curInside = isFar ? cur.z <= planeDis : cur.z >= planeDis;
-            bool nextInside = isFar ? next.z <= planeDis : next.z >= planeDis;
-            if (curInside && nextInside) {
-                ret.push_back(next);
-            }
-            else if (curInside && !nextInside) {
-                ret.push_back(intersection_Plane(cur, next, planeDis));
-            }
-            else if (!curInside && nextInside) {
-                ret.push_back(intersection_Plane(cur, next, planeDis));
-                ret.push_back(next);
-            }
-        }
-        return ret;
-    }
-    std::vector<Vec4> sutherlanHodgmanClip_Screen(const std::vector<Vec4>& vertexes) {//can use screen size
-        std::vector<Vec4> clipPolygon = { {0, 0}, {0, canvasHeight - 1}, {canvasWidth - 1, canvasHeight - 1}, {canvasWidth - 1, 0} };
-        //std::vector<Vec4> ret = {v[0], v[1], v[2]};
-        std::vector<Vec4> ret = vertexes;
-        for (int i = 0; i < clipPolygon.size(); i++) {
-            std::vector<Vec4> input = ret;
-            ret.clear();
-
-            Vec4 A = clipPolygon[i];
-            Vec4 B = clipPolygon[(i + 1) % clipPolygon.size()];
-
-            for (int j = 0; j < input.size(); j++) {
-                Vec4 P = input[j];
-                Vec4 Q = input[(j + 1) % input.size()];
-
-                bool P_inside = edgeFunction(A, B, P) >= 0 ? true : false;
-                bool Q_inside = edgeFunction(A, B, Q) >= 0 ? true : false;
-
-
-                if (P_inside && Q_inside) {
-                    ret.push_back(Q);
-                }
-                else if (P_inside && !Q_inside) {
-                    ret.push_back(intersection(P, Q, A, B));
-                }
-                else if (!P_inside && Q_inside) {
-                    ret.push_back(intersection(P, Q, A, B));
-                    ret.push_back(Q);
-                }
-            }
-        }
-        return ret;
-    }
-    void draw(GamesEngineeringBase::Window& canvas, Colour colour) {
-        // classic bounds, may return larger bounding box in some case
-        //findBounds(); 
-        
-        //clip by near plane and far plane should be here(before transforming to screen)
-        std::vector<Vec4> vertexes = { v[0], v[1], v[2] };
-        vertexes = sutherlanHodgmanClip(vertexes, _near, false);
-        vertexes = sutherlanHodgmanClip(vertexes, _far, true);
-        for (auto& v : vertexes) {
-            v = proM.mul(v).dividebyw();
-            v.x = ((v.x + 1) / 2) * canvasWidth; v.y = canvasHeight - ((v.y + 1) / 2) * canvasHeight;//make Y axis is up-towards in the screen(because Y axis is down in the screen)
-        }
-        //bounds after clipping screen(it does work when triangle out of the screen)
-        vertexes = sutherlanHodgmanClip_Screen(vertexes);
-        
-        findBoundsClip(vertexes);
-
-        v[0] = proM.mul(v[0]).dividebyw();
-        v[1] = proM.mul(v[1]).dividebyw();
-        v[2] = proM.mul(v[2]).dividebyw();
-
-        v[0].x = ((v[0].x + 1) / 2) * canvasWidth; v[0].y = canvasHeight - ((v[0].y + 1) / 2) * canvasHeight;
-        v[1].x = ((v[1].x + 1) / 2) * canvasWidth; v[1].y = canvasHeight - ((v[1].y + 1) / 2) * canvasHeight;
-        v[2].x = ((v[2].x + 1) / 2) * canvasWidth; v[2].y = canvasHeight - ((v[2].y + 1) / 2) * canvasHeight;
-
-        float area = areaComputing();
-        for (int y = (int)bl.y; y < (int)tr.y + 1; y++) {
-            for (int x = (int)bl.x; x < (int)tr.x + 1; x++) {
-                Vec4 p(x + 0.5f, y + 0.5f, 0);
-                // Compute triangle here
-                float alpha = edgeFunction(v[1], v[2], p);
-                float beta = edgeFunction(v[2], v[0], p);
-                float gamma = edgeFunction(v[0], v[1], p);
-
-                alpha *= area;
-                beta *= area;
-                gamma *= area;
-
-                if ((alpha > 0 && beta > 0 && gamma > 0)|| (alpha < 0 && beta < 0 && gamma < 0)) {
-                    //zbuffer
-                    p.z = fabs(alpha * v[0].z + beta * v[1].z + gamma * v[2].z);//fabs: sometimes the alpha beta and gamma are all nagetive
-                    //std::cout << p.z << std::endl;
-                    if (zb.zbufferUpdate(x, y, p.z)) {
-                        //simple interpolate attribute, may cause streching
-                        //Colour frag = simpleInterpolateAttribute(Colour(1.0f, 0, 0), Colour(0, 1.0f, 0), Colour(0, 0, 1.0f), fabs(alpha), fabs(beta), fabs(gamma));
-                        
-                        //using w for correcting barycentric coordinates
-                        /*float frag_w = ((alpha * v[0].w) + (beta * v[1].w) + (gamma * v[2].w));
-                        Colour frag = perspectiveCorrectInterpolateAttribute(Colour(1.0f, 0, 0), Colour(0, 1.0f, 0), Colour(0, 0, 1.0f), v[0].w, v[1].w, v[2].w,
-                            alpha, beta, gamma, frag_w);
-                        canvas.draw(x, y, frag.r * 255, frag.g * 255, frag.b * 255);*/
-
-                        //using constant colour
-                        canvas.draw(x, y, colour.r * 255, colour.g * 255, colour.b * 255);
-                    }
-                    
-                }
-            }
-        }
-    }
-    void print() {
-        std::cout << v[0].print2str() << v[1].print2str() << v[2].print2str() << std::endl;
-    }
-    Vec4& operator[](int index) {
-        return v[index];
-    }
+    Vec3 tangent;
+    float tu;
+    float tv;
 };
-
-class Draw3D {
+//------------------------------
+class VertexLayoutCache
+{
 public:
-    Draw3D(){}
-    static void loadVerteces(const std::string& filename, std::vector<Vec4>& vertexList, GEMLoader::GEMModelLoader& loader) {
-        std::vector<GEMLoader::GEMMesh> gemmeshes;
-        loader.load(filename, gemmeshes);
-        for (int i = 0; i < gemmeshes.size(); i++) {
+    static const D3D12_INPUT_LAYOUT_DESC& getStaticLayout() {
+        static const D3D12_INPUT_ELEMENT_DESC inputLayoutStatic[] = {
+        { "POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        };
+        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutStatic, 4 };
+        return desc;
+    }
 
-            for (int j = 0; j < gemmeshes[i].indices.size(); j++) {
-                GEMLoader::GEMVec3 vec;
-                int index = gemmeshes[i].indices[j];
-                vec = gemmeshes[i].verticesStatic[index].position;
-                vertexList.push_back(Vec4(vec.x, vec.y, vec.z, 1));
+
+};
+class GeneralMesh {
+public:
+    ID3D12Resource* vertexBuffer;
+    ID3D12Resource* indexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW vbView;
+    D3D12_INDEX_BUFFER_VIEW ibView;
+    D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
+    unsigned int numMeshIndices;
+
+    void init(Core* core, std::vector<STATIC_VERTEX> vertices, std::vector<unsigned int> indices) {
+        init(core, &vertices[0], sizeof(STATIC_VERTEX), vertices.size(), &indices[0], indices.size());
+        inputLayoutDesc = VertexLayoutCache::getStaticLayout();
+    }
+    void init(Core* core, void* vertices, int vertexSizeInBytes, int numVertices,
+        unsigned int* indices, int numIndices) {
+        D3D12_HEAP_PROPERTIES heapprops = {};
+        heapprops.Type = D3D12_HEAP_TYPE_DEFAULT;
+        heapprops.CreationNodeMask = 1;
+        heapprops.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC vbDesc = {};
+        vbDesc.Width = numVertices * vertexSizeInBytes;
+        vbDesc.Height = 1;
+        vbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        vbDesc.DepthOrArraySize = 1;
+        vbDesc.MipLevels = 1;
+        vbDesc.SampleDesc.Count = 1;
+        vbDesc.SampleDesc.Quality = 0;
+        vbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        core->device->CreateCommittedResource(&heapprops, D3D12_HEAP_FLAG_NONE, &vbDesc,
+            D3D12_RESOURCE_STATE_COMMON, NULL, IID_PPV_ARGS(&vertexBuffer));
+        core->uploadResource(vertexBuffer, vertices, numVertices * vertexSizeInBytes,
+            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+        vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+        vbView.StrideInBytes = vertexSizeInBytes;
+        vbView.SizeInBytes = numVertices * vertexSizeInBytes;
+
+        D3D12_RESOURCE_DESC ibDesc;
+        memset(&ibDesc, 0, sizeof(D3D12_RESOURCE_DESC));
+        ibDesc.Width = numIndices * sizeof(unsigned int);
+        ibDesc.Height = 1;
+        ibDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        ibDesc.DepthOrArraySize = 1;
+        ibDesc.MipLevels = 1;
+        ibDesc.SampleDesc.Count = 1;
+        ibDesc.SampleDesc.Quality = 0;
+        ibDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        HRESULT hr = core->device->CreateCommittedResource(&heapprops, D3D12_HEAP_FLAG_NONE, &ibDesc,
+            D3D12_RESOURCE_STATE_COMMON, NULL, IID_PPV_ARGS(&indexBuffer));
+        core->uploadResource(indexBuffer, indices, numIndices * sizeof(unsigned int),
+            D3D12_RESOURCE_STATE_INDEX_BUFFER);
+
+        ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+        ibView.Format = DXGI_FORMAT_R32_UINT;
+        ibView.SizeInBytes = numIndices * sizeof(unsigned int);
+        numMeshIndices = numIndices;
+
+    }
+    void draw(Core* core) {
+        core->getCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        core->getCommandList()->IASetVertexBuffers(0, 1, &vbView);
+        core->getCommandList()->IASetIndexBuffer(&ibView);
+        core->getCommandList()->DrawIndexedInstanced(numMeshIndices, 1, 0, 0, 0);
+    }
+
+};
+class Mesh {//simple mesh class
+public:
+    ID3D12Resource* vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW vbView;
+
+    void init(Core* core, void* vertices, int vertexSizeInBytes, int numVertices) {
+        D3D12_HEAP_PROPERTIES heapprops = {};
+        heapprops.Type = D3D12_HEAP_TYPE_DEFAULT;
+        heapprops.CreationNodeMask = 1;
+        heapprops.VisibleNodeMask = 1;
+
+        D3D12_RESOURCE_DESC vbDesc = {};
+        vbDesc.Width = numVertices * vertexSizeInBytes;
+        vbDesc.Height = 1;
+        vbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        vbDesc.DepthOrArraySize = 1;
+        vbDesc.MipLevels = 1;
+        vbDesc.SampleDesc.Count = 1;
+        vbDesc.SampleDesc.Quality = 0;
+        vbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+        core->device->CreateCommittedResource(&heapprops, D3D12_HEAP_FLAG_NONE, &vbDesc,
+            D3D12_RESOURCE_STATE_COMMON, NULL, IID_PPV_ARGS(&vertexBuffer));
+        core->uploadResource(vertexBuffer, vertices, numVertices * vertexSizeInBytes,
+            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+        vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+        vbView.StrideInBytes = vertexSizeInBytes;
+        vbView.SizeInBytes = numVertices * vertexSizeInBytes;
+    }
+
+    void draw(Core* core) {
+        core->getCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        core->getCommandList()->IASetVertexBuffers(0, 1, &vbView);
+        core->getCommandList()->DrawInstanced(3, 1, 0, 0);
+    }
+
+};
+class WorldCube {//create a simple cube by using world axis
+public:
+    GeneralMesh mesh;
+    void init(Core* core, Vec3 offset = Vec3(0, 0, 0)) {
+        std::vector<STATIC_VERTEX> vertices;
+        Vec3 p0 = Vec3(-1.0f, -1.0f, -1.0f) + offset;
+        Vec3 p1 = Vec3(1.0f, -1.0f, -1.0f) + offset;
+        Vec3 p2 = Vec3(1.0f, 1.0f, -1.0f) + offset;
+        Vec3 p3 = Vec3(-1.0f, 1.0f, -1.0f) + offset;
+        Vec3 p4 = Vec3(-1.0f, -1.0f, 1.0f) + offset;
+        Vec3 p5 = Vec3(1.0f, -1.0f, 1.0f) + offset;
+        Vec3 p6 = Vec3(1.0f, 1.0f, 1.0f) + offset;
+        Vec3 p7 = Vec3(-1.0f, 1.0f, 1.0f) + offset;
+
+        vertices.push_back(addVertex(p0, Vec3(0.0f, 0.0f, -1.0f), 0.0f, 1.0f));
+        vertices.push_back(addVertex(p1, Vec3(0.0f, 0.0f, -1.0f), 1.0f, 1.0f));
+        vertices.push_back(addVertex(p2, Vec3(0.0f, 0.0f, -1.0f), 1.0f, 0.0f));
+        vertices.push_back(addVertex(p3, Vec3(0.0f, 0.0f, -1.0f), 0.0f, 0.0f));
+        vertices.push_back(addVertex(p5, Vec3(0.0f, 0.0f, 1.0f), 0.0f, 1.0f));
+        vertices.push_back(addVertex(p4, Vec3(0.0f, 0.0f, 1.0f), 1.0f, 1.0f));
+        vertices.push_back(addVertex(p7, Vec3(0.0f, 0.0f, 1.0f), 1.0f, 0.0f));
+        vertices.push_back(addVertex(p6, Vec3(0.0f, 0.0f, 1.0f), 0.0f, 0.0f));
+        vertices.push_back(addVertex(p4, Vec3(-1.0f, 0.0f, 0.0f), 0.0f, 1.0f));
+        vertices.push_back(addVertex(p0, Vec3(-1.0f, 0.0f, 0.0f), 1.0f, 1.0f));
+        vertices.push_back(addVertex(p3, Vec3(-1.0f, 0.0f, 0.0f), 1.0f, 0.0f));
+        vertices.push_back(addVertex(p7, Vec3(-1.0f, 0.0f, 0.0f), 0.0f, 0.0f));
+
+        vertices.push_back(addVertex(p1, Vec3(1.0f, 0.0f, 0.0f), 0.0f, 1.0f));
+        vertices.push_back(addVertex(p5, Vec3(1.0f, 0.0f, 0.0f), 1.0f, 1.0f));
+        vertices.push_back(addVertex(p6, Vec3(1.0f, 0.0f, 0.0f), 1.0f, 0.0f));
+        vertices.push_back(addVertex(p2, Vec3(1.0f, 0.0f, 0.0f), 0.0f, 0.0f));
+        vertices.push_back(addVertex(p3, Vec3(0.0f, 1.0f, 0.0f), 0.0f, 1.0f));
+        vertices.push_back(addVertex(p2, Vec3(0.0f, 1.0f, 0.0f), 1.0f, 1.0f));
+        vertices.push_back(addVertex(p6, Vec3(0.0f, 1.0f, 0.0f), 1.0f, 0.0f));
+        vertices.push_back(addVertex(p7, Vec3(0.0f, 1.0f, 0.0f), 0.0f, 0.0f));
+        vertices.push_back(addVertex(p4, Vec3(0.0f, -1.0f, 0.0f), 0.0f, 1.0f));
+        vertices.push_back(addVertex(p5, Vec3(0.0f, -1.0f, 0.0f), 1.0f, 1.0f));
+        vertices.push_back(addVertex(p1, Vec3(0.0f, -1.0f, 0.0f), 1.0f, 0.0f));
+        vertices.push_back(addVertex(p0, Vec3(0.0f, -1.0f, 0.0f), 0.0f, 0.0f));
+
+        std::vector<unsigned int> indices;
+        indices.push_back(0); indices.push_back(1); indices.push_back(2);
+        indices.push_back(0); indices.push_back(2); indices.push_back(3);
+        indices.push_back(4); indices.push_back(5); indices.push_back(6);
+        indices.push_back(4); indices.push_back(6); indices.push_back(7);
+        indices.push_back(8); indices.push_back(9); indices.push_back(10);
+        indices.push_back(8); indices.push_back(10); indices.push_back(11);
+        indices.push_back(12); indices.push_back(13); indices.push_back(14);
+        indices.push_back(12); indices.push_back(14); indices.push_back(15);
+        indices.push_back(16); indices.push_back(17); indices.push_back(18);
+        indices.push_back(16); indices.push_back(18); indices.push_back(19);
+        indices.push_back(20); indices.push_back(21); indices.push_back(22);
+        indices.push_back(20); indices.push_back(22); indices.push_back(23);
+
+        mesh.init(core, vertices, indices);
+
+    }
+    STATIC_VERTEX addVertex(Vec3 p, Vec3 n, float tu, float tv) {
+        STATIC_VERTEX v;
+        v.pos = p;
+        v.normal = n;
+        v.tangent = Vec3(0, 0, 0); // For now
+        v.tu = tu;
+        v.tv = tv;
+        return v;
+    }
+};
+class PSOManager {
+public:
+    std::unordered_map<std::string, ID3D12PipelineState*> psos;
+
+    void createPSO(Core* core, std::string name, ID3DBlob* vs, ID3DBlob* ps, D3D12_INPUT_LAYOUT_DESC layout) {
+        //Avoid creating extra state
+        if (psos.find(name) != psos.end()) return;
+        //Configure GPU pipeline with shaders, layout and Root Signature
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+        desc.InputLayout = layout;
+        desc.pRootSignature = core->rootSignature;
+        desc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+        desc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+        //Responsible for configuring the rasterizer
+        D3D12_RASTERIZER_DESC rasterDesc = {};
+        rasterDesc.FillMode = D3D12_FILL_MODE_SOLID;
+        rasterDesc.CullMode = D3D12_CULL_MODE_NONE;
+        rasterDesc.FrontCounterClockwise = FALSE;
+        rasterDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+        rasterDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+        rasterDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+        rasterDesc.DepthClipEnable = TRUE;
+        rasterDesc.MultisampleEnable = FALSE;
+        rasterDesc.AntialiasedLineEnable = FALSE;
+        rasterDesc.ForcedSampleCount = 0;
+        rasterDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+        desc.RasterizerState = rasterDesc;
+        //Responsible for configuring the depth buffer
+        D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        depthStencilDesc.DepthEnable = TRUE;
+        depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+        depthStencilDesc.StencilEnable = FALSE;
+        desc.DepthStencilState = depthStencilDesc;
+        //Blend State
+        D3D12_BLEND_DESC blendDesc = {};
+        blendDesc.AlphaToCoverageEnable = FALSE;
+        blendDesc.IndependentBlendEnable = FALSE;
+        const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlend = {
+        FALSE, FALSE,
+        D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+        D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+        D3D12_LOGIC_OP_NOOP,
+        D3D12_COLOR_WRITE_ENABLE_ALL
+        };
+        for (int i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++) {
+            blendDesc.RenderTarget[i] = defaultRenderTargetBlend;
+        }
+        desc.BlendState = blendDesc;
+        //Render Target State + Topology
+        desc.SampleMask = UINT_MAX;
+        desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        desc.NumRenderTargets = 1;
+        desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        desc.SampleDesc.Count = 1;
+        //Create Pipeline State Object
+        ID3D12PipelineState* pso;
+        HRESULT hr = core->device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso));
+        //Insert into map
+        psos.insert({ name, pso });
+    }
+    void bind(Core* core, std::string name) {
+        core->getCommandList()->SetPipelineState(psos[name]);
+    }
+
+};
+struct ConstantBufferVariable
+{
+    unsigned int offset;
+    unsigned int size;
+};
+class ConstantBuffer {
+public:
+    ID3D12Resource* constantBuffer;
+    unsigned char* buffer;
+    unsigned int cbSizeInBytes;
+
+    std::string name;
+    std::map<std::string, ConstantBufferVariable> constantBufferData;
+
+    unsigned int maxDrawCalls;
+    unsigned int offsetIndex;
+
+    void init(Core* core, unsigned int sizeInBytes, unsigned int _maxDrawCalls = 1024) {
+        cbSizeInBytes = (sizeInBytes + 255) & ~255;
+        maxDrawCalls = _maxDrawCalls;
+        unsigned int cbSizeInBytesAligned = cbSizeInBytes * maxDrawCalls;
+        offsetIndex = 0;
+        HRESULT hr;
+        D3D12_HEAP_PROPERTIES heapprops = {};
+        heapprops.Type = D3D12_HEAP_TYPE_UPLOAD;
+        heapprops.CreationNodeMask = 1;
+        heapprops.VisibleNodeMask = 1;
+        D3D12_RESOURCE_DESC cbDesc = {};
+        cbDesc.Width = cbSizeInBytesAligned;
+        cbDesc.Height = 1;
+        cbDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        cbDesc.DepthOrArraySize = 1;
+        cbDesc.MipLevels = 1;
+        cbDesc.SampleDesc.Count = 1;
+        cbDesc.SampleDesc.Quality = 0;
+        cbDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        core->device->CreateCommittedResource(&heapprops, D3D12_HEAP_FLAG_NONE, &cbDesc, D3D12_RESOURCE_STATE_GENERIC_READ, NULL,
+            IID_PPV_ARGS(&constantBuffer));
+        constantBuffer->Map(0, NULL, (void**)&buffer);
+    }
+    void update(std::string name, void* data) {
+        ConstantBufferVariable cbVariable = constantBufferData[name];
+        unsigned int offset = offsetIndex * cbSizeInBytes;
+        memcpy(&buffer[offset + cbVariable.offset], data, cbVariable.size);
+    }
+    D3D12_GPU_VIRTUAL_ADDRESS getGPUAddress() const {
+        return (constantBuffer->GetGPUVirtualAddress() + (offsetIndex * cbSizeInBytes));
+    }
+    void next() {
+        offsetIndex++;
+        if (offsetIndex >= maxDrawCalls) {
+            offsetIndex = 0;
+        }
+    }
+};
+enum shaderTypes { VS, PS };
+class Shader {
+public:
+    std::string name;
+    ID3DBlob* shader;
+
+    std::map<std::string, ConstantBuffer> constantBuffers;//map is better
+
+    std::string readShaderFile(std::string fileName) {
+        std::ifstream file(fileName);
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        return buffer.str();
+    }
+    void compileShader(std::string fileName, shaderTypes shaderType, std::string shaderName) {
+        ID3DBlob* status;
+        std::string shaderStr = readShaderFile(fileName);
+        name = shaderName;
+        HRESULT hr;
+        switch (shaderType) {
+        case VS:
+            hr = D3DCompile(shaderStr.c_str(), strlen(shaderStr.c_str()), NULL, NULL, NULL, "VS", "vs_5_0", 0, 0, &shader, &status);
+            if (FAILED(hr)) {
+                (char*)status->GetBufferPointer();
             }
+            break;
+        case PS:
+            hr = D3DCompile(shaderStr.c_str(), strlen(shaderStr.c_str()), NULL, NULL, NULL, "PS", "ps_5_0", 0, 0, &shader, &status);
+            if (FAILED(hr)) {
+                (char*)status->GetBufferPointer();
+            }
+            break;
         }
     }
-    static void drawByVerteces(GamesEngineeringBase::Window& canvas, const std::vector<Vec4>& verteces, const Vec4& offset, Matrix& lookupM) {
-        if (verteces.size() % 3 != 0) {//triangle
-            std::cout << "verteces num wrong!" << std::endl;
-            return;
+
+    void getConstantBuffer() {
+        ID3D12ShaderReflection* reflection;
+        D3DReflect(shader->GetBufferPointer(), shader->GetBufferSize(), IID_PPV_ARGS(&reflection));
+        D3D12_SHADER_DESC desc;
+        reflection->GetDesc(&desc);
+        //read constant buffers in shader (may have more than 1 constant buffers)
+        for (int i = 0; i < desc.ConstantBuffers; i++) {
+            ConstantBuffer buffer;
+            ID3D12ShaderReflectionConstantBuffer* constantBuffer = reflection->GetConstantBufferByIndex(i);
+            D3D12_SHADER_BUFFER_DESC cbDesc;
+            constantBuffer->GetDesc(&cbDesc);
+            unsigned int totalSize = 0;
+            for (int j = 0; j < cbDesc.Variables; j++) {
+                ID3D12ShaderReflectionVariable* var = constantBuffer->GetVariableByIndex(j);
+                D3D12_SHADER_VARIABLE_DESC vDesc;
+                var->GetDesc(&vDesc);
+                ConstantBufferVariable bufferVariable;
+                bufferVariable.offset = vDesc.StartOffset;
+                bufferVariable.size = vDesc.Size;
+                buffer.constantBufferData.insert({ vDesc.Name, bufferVariable });
+                totalSize += bufferVariable.size;
+            }
+            //add
+            buffer.name = cbDesc.Name;
+            buffer.cbSizeInBytes = totalSize;
+            constantBuffers.insert(std::pair<std::string, ConstantBuffer>(buffer.name, buffer));
         }
-        for (int i = 0; i < verteces.size() / 3; i++) {
-            Vec4 v[3] = { verteces[i * 3] + offset, verteces[i * 3 + 1] + offset,verteces[i * 3 + 2] + offset };
-            Triangle tri(lookupM.mul(v[0]), lookupM.mul(v[1]), lookupM.mul(v[2]));
-            tri.draw(canvas, diffusionLignt(tri, lookupM));
-        }
-    
-    }
-    static Colour diffusionLignt(Triangle& tri, Matrix& lookupM) {
-        //Vec3 omega_i = Vec3(1, 1, 0).normalize();
-        Vec3 omega_i = lookupM.mulVec(Vec3(1, 1, 0)).normalize();//rotate the camera, light ray should not change its vector in world space
-        //omega_i.print();
-        Vec3 N = tri.findNormal();
-        Colour rho(0, 1.0f, 0);
-        Colour L(1.0f, 1.0f, 1.0f);
-        Colour ambient(0.5f, 0.5f, 0.5f);
-        return (rho / M_PI) * (L * max(omega_i.dot(N), 0.0f) + ambient);
     }
 };
 
-//lab
-
-
-
-//lab end
-
-int main() {
-    GamesEngineeringBase::Window canvas;
-    canvas.create(canvasWidth, canvasHeight, "Test");
-    proM = Matrix::projectionMatrix(M_PI / 4, static_cast<float>(canvasWidth) / canvasHeight, _near, _far);
-    GEMLoader::GEMModelLoader loader;
-    bool running = true;
-
-    std::vector<Vec4> bunnyVertexList;
-    Draw3D::loadVerteces("Resources/bunny.gem", bunnyVertexList, loader);
-
-    std::vector<Vec4> cubeVertexList;
-    Draw3D::loadVerteces("Resources/cube.gem", cubeVertexList, loader);
-    Matrix viewM;
-    float radius = 0.5f;
-    float t = 0.0f;
-    //lab end
-    while (running)
-    {
-        // Check for input (key presses or window events)
-        canvas.checkInput();
-
-        // Clear the window for the next frame rendering
-        canvas.clear();
-        zb.init();
-        //lookat matrix
-        t += 0.05;
-
-        Vec3 from = Vec3(radius * cosf(t), 0, radius * sinf(t));
-        viewM = Matrix::lookAtMatrix(from, Vec3(0, 0, 0), Vec3(0, 1, 0));//looking (0,0,0)
-
-
-        Draw3D::drawByVerteces(canvas, bunnyVertexList, Vec4(0, -0.1, 0), viewM);
-        
-        Draw3D::drawByVerteces(canvas, cubeVertexList, Vec4(10, 0, 0), viewM);
-
-        // Display the frame on the screen. This must be called once the frame is finished in order to display the frame.
-        canvas.present();
+class ShaderManager {
+public:
+    std::map<std::string, Shader> shaders;
+    void init() {
+        loadShader("VertexShader", VS);
+        loadShader("PixelShader", PS);
     }
+
+    void loadShader(std::string shaderName, shaderTypes shaderType) {
+        Shader shader;
+        shader.name = shaderName;
+        //find and complile
+        std::string foldPath = "Shaders/";
+        std::string fileName = foldPath + shaderName + ".cso";
+        std::wstring wideName = std::wstring(fileName.begin(), fileName.end());
+        std::ifstream compiledFile(fileName);
+        if (compiledFile.is_open()) {//check if there is compiled shader code
+            D3DReadFileToBlob(wideName.c_str(), &shader.shader);
+        }
+        else {//if not, generate a .cso file
+            shader.compileShader(std::string(foldPath + shaderName + ".hlsl"), shaderType, shaderName);
+            D3DWriteBlobToFile(shader.shader, wideName.c_str(), false);
+        }
+        shader.getConstantBuffer();
+        shaders.insert(std::pair<std::string, Shader>(shaderName, shader));
+    }
+    void updateConstant(std::string shaderName, std::string cbName, std::string varName, void* data) {
+        shaders[shaderName].constantBuffers[cbName].update(varName, data);
+    }
+};
+class Cube {
+public:
+    WorldCube cube;
+    PSOManager psos;
+    ShaderManager* sm;
+
+    void init(Core* core, ShaderManager* _sm, Vec3 offset = Vec3(0, 0, 0)) {
+        sm = _sm;
+        cube.init(core, offset);
+        cbinit(core);
+        psos.createPSO(core, "Cube", sm->shaders["VertexShader"].shader, sm->shaders["PixelShader"].shader, cube.mesh.inputLayoutDesc);
+    }
+    void cbinit(Core* core) {
+        for (auto it = sm->shaders.begin(); it != sm->shaders.end(); ++it)
+            for (auto it1 = it->second.constantBuffers.begin(); it1 != it->second.constantBuffers.end(); ++it1)
+                it1->second.init(core, it1->second.cbSizeInBytes, 1024);
+    }
+    //change variable by searching constantbuffer's name and variable's name
+    void update(Matrix planeWorld, Matrix vp) {
+        sm->updateConstant("VertexShader", "staticMeshBuffer", "W", &planeWorld);
+        sm->updateConstant("VertexShader", "staticMeshBuffer", "VP", &vp);
+    }
+    void apply(Core* core) {//actually we dont need loop in this example
+        //In our case:
+        // Index 0: Vertex Shader constant buffer(if it exists) 
+        // Index 1 : Pixel Shader constant buffer
+        for (auto it = sm->shaders["VertexShader"].constantBuffers.begin(); it != sm->shaders["VertexShader"].constantBuffers.end(); ++it) {
+            core->getCommandList()->SetGraphicsRootConstantBufferView(0, it->second.getGPUAddress());
+            it->second.next();
+        }
+        for (auto it = sm->shaders["PixelShader"].constantBuffers.begin(); it != sm->shaders["PixelShader"].constantBuffers.end(); ++it) {
+            core->getCommandList()->SetGraphicsRootConstantBufferView(1, it->second.getGPUAddress());
+            it->second.next();
+        }
+    }
+    void draw(Core* core) {
+        core->beginRenderPass();
+        apply(core);
+        psos.bind(core, "Cube");
+        cube.mesh.draw(core);
+    }
+};
+
+int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) {
+    //window init
+    Window win;
+    win.initWnd(canvasWidth, canvasHeight, "My Window");
+    //core init
+    Core core;
+    core.init(win.hwnd, 1024, 1024);
+    //shader manager init
+    ShaderManager sm;
+    sm.init();
+    //proM init
+    proM = Matrix::projectionMatrix(M_PI / 4, static_cast<float>(canvasWidth) / canvasHeight, _near, _far);
+    //draw object init
+    Cube cube;
+    cube.init(&core, &sm);
+    Cube cube1;
+    cube1.init(&core, &sm, Vec3(5, 0, 0));
+    //timer init
+    float t = 0;
+    GamesEngineeringBase::Timer timer;
+    while (1) {
+        core.beginFrame();
+        win.processMessages();
+        if (win.keys[VK_ESCAPE] == 1) break;
+        //lookat matrix update
+        float dt = timer.dt();
+        t += dt;
+        Vec3 from = Vec3(11 * cos(t), 5, 11 * sinf(t));
+        Matrix v = Matrix::lookAtMatrix(from, Vec3(0, 1, 0), Vec3(0, 1, 0));
+        //update constant buffer and draw
+        cube.update(v, proM);
+        cube.draw(&core);
+        cube1.update(v, proM);
+        cube1.draw(&core);
+        //how to add offset after initializing objects
+        core.finishFrame();
+    }
+    core.flushGraphicsQueue();
     return 0;
 }
+
+extern "C" {
+    _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+}
+

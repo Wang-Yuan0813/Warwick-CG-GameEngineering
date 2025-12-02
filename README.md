@@ -4,7 +4,7 @@ Warwick CG Notes
 a simple&basic learning notes
 ------------
 
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Example/1123_1.gif)
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1123_1.gif)
 
 <details>
 <summary>2025/11/22</summary>
@@ -48,7 +48,7 @@ I'm still not figuring out whether should I do the clip to the screen (Maybe GPU
 
 using **quaternion** to implement rotation functionality
 
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Example/1122.gif)
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1122.gif)
 
 </details>
 
@@ -59,7 +59,7 @@ using **quaternion** to implement rotation functionality
 
 use **Lookup Matrix** to simlify the rotating operation.
 
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Example/1123.gif)
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1123.gif)
 
 This function will draw triangles by each 3 verteces.
 ```cpp
@@ -105,7 +105,7 @@ So it's supposed to be:
 ```cpp
 Vec3 omega_i = lookupM.mulVec(Vec3(1, 1, 0)).normalize();//rotate the camera, light ray should not change its vector in world space
 ```
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Example/1123_3.gif)
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1123_3.gif)
 
 
 
