@@ -893,7 +893,6 @@ public:
         loadShader("VertexShader", VS);
         loadShader("PixelShader", PS);
     }
-
     void loadShader(std::string shaderName, shaderTypes shaderType) {
         Shader shader;
         shader.name = shaderName;
