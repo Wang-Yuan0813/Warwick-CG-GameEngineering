@@ -4,10 +4,10 @@ Warwick CG Notes
 a simple&basic learning notes
 ------------
 
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1123_1.gif)
-
 <details>
 <summary>2025/11/22</summary>
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1123_1.gif)
 
 add **Zbuffer**
 ```cpp
@@ -107,8 +107,6 @@ Vec3 omega_i = lookupM.mulVec(Vec3(1, 1, 0)).normalize();//rotate the camera, li
 
 </details>
 
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1202.gif)
-
 <details>
 <summary>2025/12/2</summary>
 Using GPU programming to generate 3D objects in screen.
@@ -140,4 +138,6 @@ void update(std::string name, void* data) {
     memcpy(&buffer[offset + cbVariable.offset], data, cbVariable.size);
 }
 ```
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1202.gif)
 
+</details>
