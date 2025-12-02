@@ -52,8 +52,6 @@ using **quaternion** to implement rotation functionality
 
 </details>
 
-
-
 <details>
 <summary>2025/11/23</summary>
 
@@ -107,10 +105,39 @@ Vec3 omega_i = lookupM.mulVec(Vec3(1, 1, 0)).normalize();//rotate the camera, li
 ```
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1123_3.gif)
 
-
-
 </details>
 
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1202.gif)
 
+<details>
+<summary>2025/12/2</summary>
+Using GPU programming to generate 3D objects in screen.
+    
+**Shader Manager** can manage shaders load, .cso file generate and constant buffer update.
 
+use std::map to store shaders 
+
+```cpp
+class ShaderManager {
+public:
+    std::map<std::string, Shader> shaders;
+    void init(){...}
+    void loadShader(std::string shaderName, shaderTypes shaderType){...}
+    void updateConstant(std::string shaderName, std::string cbName, std::string varName, void* data){...}
+};
+```
+**Code Reflection** use map to store varibles of constant buffers in a certain shader.
+
+```cpp
+std::map<std::string, ConstantBuffer> constantBuffers;
+```
+instead of creating and updating a structure when we need to change constant buffer, this functionality can simplify update operations through directly changing data in memory by using address.
+
+```cpp
+void update(std::string name, void* data) {
+    ConstantBufferVariable cbVariable = constantBufferData[name];
+    unsigned int offset = offsetIndex * cbSizeInBytes;
+    memcpy(&buffer[offset + cbVariable.offset], data, cbVariable.size);
+}
+```
 
