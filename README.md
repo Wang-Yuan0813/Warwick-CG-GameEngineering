@@ -141,3 +141,12 @@ void update(std::string name, void* data) {
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1202.gif)
 
 </details>
+<details>
+<summary>2025/12/3</summary>
+Seems like a little mistake in my cb.update method.
+The correct output should be this:
+    
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1203.gif)
+
+That wrong GIF is pretty cool actually...
+</details>
