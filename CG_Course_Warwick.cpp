@@ -482,6 +482,13 @@ public:
         return lookat;
 
     }
+    static Matrix translation(const Vec3& offset) {
+        Matrix tranM;
+        tranM.a[0][3] = offset.x;
+        tranM.a[1][3] = offset.y;
+        tranM.a[2][3] = offset.z;
+        return tranM;
+    }
     float& operator[](const int index) {
         return m[index];
     }
@@ -933,8 +940,8 @@ public:
                 it1->second.init(core, it1->second.cbSizeInBytes, 1024);
     }
     //change variable by searching constantbuffer's name and variable's name
-    void update(Matrix planeWorld, Matrix vp) {
-        sm->updateConstant("VertexShader", "staticMeshBuffer", "W", &planeWorld);
+    void update(Matrix world, Matrix vp) {
+        sm->updateConstant("VertexShader", "staticMeshBuffer", "W", &world);
         sm->updateConstant("VertexShader", "staticMeshBuffer", "VP", &vp);
     }
     void apply(Core* core) {//actually we dont need loop in this example
@@ -969,12 +976,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
     ShaderManager sm;
     sm.init();
     //proM init
-    proM = Matrix::projectionMatrix(M_PI / 4, static_cast<float>(canvasWidth) / canvasHeight, _near, _far);
+    proM = Matrix::projectionMatrix(M_PI / 2, static_cast<float>(canvasWidth) / canvasHeight, _near, _far);
     //draw object init
     Cube cube;
     cube.init(&core, &sm);
-    Cube cube1;
-    cube1.init(&core, &sm, Vec3(5, 0, 0));
     //timer init
     float t = 0;
     GamesEngineeringBase::Timer timer;
@@ -988,10 +993,13 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
         Vec3 from = Vec3(11 * cos(t), 5, 11 * sinf(t));
         Matrix v = Matrix::lookAtMatrix(from, Vec3(0, 1, 0), Vec3(0, 1, 0));
         //update constant buffer and draw
-        cube.update(v, proM);
+        Matrix cubePos;
+        cube.update(cubePos, proM.mul(v));
         cube.draw(&core);
-        cube1.update(v, proM);
-        cube1.draw(&core);
+        cubePos = Matrix::translation(Vec3(5, 0, 0));
+        cube.update(cubePos, proM.mul(v));
+        cube.draw(&core);
+
         //how to add offset after initializing objects
         core.finishFrame();
     }
