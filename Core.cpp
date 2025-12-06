@@ -156,8 +156,6 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &serialized, &error);
 	device->CreateRootSignature(0, serialized->GetBufferPointer(), serialized->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
 	serialized->Release();
-
-
 }
 
 

@@ -125,19 +125,28 @@
   <ItemGroup>
     <ClCompile Include="CG_Course_Warwick.cpp" />
     <ClCompile Include="Core.cpp" />
+    <ClCompile Include="Shader.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="HeaderFiles\BasicContainer.h" />
     <ClInclude Include="HeaderFiles\Core.h" />
     <ClInclude Include="HeaderFiles\GamesEngineeringBase.h" />
     <ClInclude Include="HeaderFiles\GEMLoader.h" />
+    <ClInclude Include="HeaderFiles\Mesh.h" />
+    <ClInclude Include="HeaderFiles\Model.h" />
+    <ClInclude Include="HeaderFiles\PSO.h" />
+    <ClInclude Include="HeaderFiles\Shader.h" />
     <ClInclude Include="HeaderFiles\window.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="Shaders\AnimatedVertexShader.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="Shaders\PixelShader.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Shaders\VertexShader.hlsl">
+    <FxCompile Include="Shaders\StaticVertexShader.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </FxCompile>
   </ItemGroup>
