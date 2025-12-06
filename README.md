@@ -110,11 +110,11 @@ Vec3 omega_i = lookupM.mulVec(Vec3(1, 1, 0)).normalize();//rotate the camera, li
 <details>
 <summary>2025/12/2</summary>
 Using GPU programming to generate 3D objects in screen.
-    
+        
 **Shader Manager** can manage shaders load, .cso file generate and constant buffer update.
-
+    
 use std::map to store shaders 
-
+    
 ```cpp
 class ShaderManager {
 public:
@@ -130,7 +130,7 @@ public:
 std::map<std::string, ConstantBuffer> constantBuffers;
 ```
 instead of creating and updating a structure when we need to change constant buffer, this functionality can simplify update operations through directly changing data in memory by using address.
-
+    
 ```cpp
 void update(std::string name, void* data) {
     ConstantBufferVariable cbVariable = constantBufferData[name];
@@ -145,8 +145,36 @@ void update(std::string name, void* data) {
 <summary>2025/12/3</summary>
 Seems like a little mistake in my cb.update method.
 The correct output should be this:
-    
+        
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1203.gif)
-
+    
 That wrong GIF is pretty cool actually...
+    
+</details>
+<details>
+<summary>2025/12/5</summary>
+    
+Made some adjustments to make sure the animated models can act normally..
+
+Use **Bezier Curve** to move the tree among 3 cubes.
+
+In Tom's Math.h headfile, he defined a matrix multiplication which can swap the applying order of two matrix. 
+
+e.g. 
+
+```cpp
+Matrix vp = v * persM;//v for Lookat Matrix, persM for Perspective Matrix
+```
+
+```cpp
+ sm->updateConstant("AnimatedVertexShader", "animatedMeshBuffer", "VP", &vp); 
+```
+
+```hlsl
+output.Pos = mul(output.Pos, VP);// output.Pos * P * V
+```
+V will be applied first because of the right multiplication of a matrix.
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1206.gif)
+
 </details>
