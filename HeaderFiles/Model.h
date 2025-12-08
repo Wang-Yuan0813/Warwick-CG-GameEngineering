@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HeaderFiles/Mesh.h"
+#include "HeaderFiles/Texture.h"
 
 struct Bone
 {
@@ -25,8 +26,9 @@ public:
     PSOManager* psos;
     ShaderManager* sm;
     Mesh mesh;
-
-    void init(Core* core, Vec3 offset = Vec3(0, 0, 0)) {
+    Core* core;
+    void init(Core* _core, Vec3 offset = Vec3(0, 0, 0)) {
+        core = _core;
         std::vector<STATIC_VERTEX> vertices;
         Vec3 p0 = Vec3(-1.0f, -1.0f, -1.0f) + offset;
         Vec3 p1 = Vec3(1.0f, -1.0f, -1.0f) + offset;
@@ -83,25 +85,21 @@ public:
 
     }
     
-    void init(Core* core, ShaderManager* _sm, PSOManager* _psos, Vec3 offset = Vec3(0, 0, 0)) {
+    void init(Core* _core, ShaderManager* _sm, PSOManager* _psos, Vec3 offset = Vec3(0, 0, 0)) {
         sm = _sm;
         psos = _psos;
+        core = _core;
         init(core, offset);
-        //cbinit(core);
         psos->createPSO(core, "Cube", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, mesh.inputLayoutDesc);
         psos->createPSO(core, "CubeWire", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, mesh.inputLayoutDesc, true);
     }
-    void cbinit(Core* core) {
-        for (auto it = sm->shaders.begin(); it != sm->shaders.end(); ++it)
-            for (auto it1 = it->second.constantBuffers.begin(); it1 != it->second.constantBuffers.end(); ++it1)
-                it1->second.init(core, it1->second.cbSizeInBytes, 1024);
-    }
+
     //change variable by searching constantbuffer's name and variable's name
     void update(Matrix world, Matrix vp) {
         sm->updateConstant("StaticVertexShader", "staticMeshBuffer", "W", &world);
         sm->updateConstant("StaticVertexShader", "staticMeshBuffer", "VP", &vp);
     }
-    void apply(Core* core) {//actually we dont need loop in this example
+    void apply() {//actually we dont need loop in this example
         //In our case:
         // Index 0: Vertex Shader constant buffer(if it exists) 
         // Index 1 : Pixel Shader constant buffer
@@ -114,8 +112,8 @@ public:
             it->second.next();
         }
     }
-    void draw(Core* core, bool wireFrameMode = false) {
-        apply(core);
+    void draw(bool wireFrameMode = false) {
+        apply();
         if(wireFrameMode)   psos->bind(core, "CubeWire");
         else    psos->bind(core, "Cube");
         mesh.draw(core);
@@ -127,8 +125,9 @@ public:
     ShaderManager* sm;
     std::vector<Mesh> meshes;
     PSOManager* psos;
+    Core* core;
 
-    void loadMeshes(Core* core, std::string filename) {
+    void loadMeshes(std::string filename) {
         GEMLoader::GEMModelLoader loader;
         std::vector<GEMLoader::GEMMesh> gemmeshes;
         loader.load(filename, gemmeshes);
@@ -145,27 +144,21 @@ public:
         }
     }
 
-    void init(Core* core, ShaderManager* _sm, PSOManager* _psos, std::string filename) {
+    void init(Core* _core, ShaderManager* _sm, PSOManager* _psos, std::string filename) {
         sm = _sm;
         psos = _psos;
-        loadMeshes(core, filename);
-        //cbinit(core);
+        core = _core;
+        loadMeshes(filename);
         psos->createPSO(core, "StaticModel", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getStaticLayout());
         psos->createPSO(core, "StaticModelWire", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getStaticLayout(), true);
 
-    }
-    //not used
-    void cbinit(Core* core) {
-        for (auto it = sm->shaders.begin(); it != sm->shaders.end(); ++it)
-            for (auto it1 = it->second.constantBuffers.begin(); it1 != it->second.constantBuffers.end(); ++it1)
-                it1->second.init(core, it1->second.cbSizeInBytes, 1024);
     }
     //change variable by searching constantbuffer's name and variable's name
     void update(Matrix world, Matrix vp) {
         sm->updateConstant("StaticVertexShader", "staticMeshBuffer", "W", &world);
         sm->updateConstant("StaticVertexShader", "staticMeshBuffer", "VP", &vp);
     }
-    void apply(Core* core) {//actually we dont need loop in this example
+    void apply() {//actually we dont need loop in this example
         //In our case:
         // Index 0: Vertex Shader constant buffer(if it exists) 
         // Index 1 : Pixel Shader constant buffer
@@ -178,8 +171,8 @@ public:
             it->second.next();
         }
     }
-    void draw(Core* core, bool wireFrameMode = false) {
-        apply(core);
+    void draw(bool wireFrameMode = false) {
+        apply();
         if(wireFrameMode)   psos->bind(core, "StaticModelWire");
         else                psos->bind(core, "StaticModel");
         for (int i = 0; i < meshes.size(); i++)
@@ -288,10 +281,13 @@ public:
 };
 class AnimatedModel {
 public:
+    Core* core;
     ShaderManager* sm;
     std::vector<Mesh> meshes;
     Animation animation;
     PSOManager* psos;
+    std::vector<std::string> textureFilenames;
+    TextureManager* tm;
 
     void loadMeshes(Core* core, std::string filename) {
         GEMLoader::GEMModelLoader loader;
@@ -306,6 +302,13 @@ public:
                 memcpy(&v, &gemmeshes[i].verticesAnimated[j], sizeof(ANIMATED_VERTEX));
                 vertices.push_back(v);
             }
+            textureFilenames.push_back(gemmeshes[i].material.find("albedo").getValue());
+
+            Texture t;
+            //std::string textureFilename = gemmeshes[i].material.find("albedo").getValue();
+            t.load(core, gemmeshes[i].material.find("albedo").getValue());
+            tm->add(t);
+
             mesh.init(core, vertices, gemmeshes[i].indices);
             meshes.push_back(mesh);
         }
@@ -340,18 +343,14 @@ public:
         }
 
     }
-    void init(Core* core, ShaderManager* _sm, PSOManager* _psos, std::string filename) {
+    void init(Core* _core, ShaderManager* _sm, PSOManager* _psos, TextureManager* _tm, std::string filename) {
         sm = _sm;
         psos = _psos;
+        core = _core;
+        tm = _tm;
         loadMeshes(core, filename);
-        //cbinit(core);
-        psos->createPSO(core, "AnimatedModel", sm->shaders["AnimatedVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getAnimatedLayout());
-        psos->createPSO(core, "AnimatedModelWire", sm->shaders["AnimatedVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getAnimatedLayout(), true);
-    }
-    void cbinit(Core* core) {
-        for (auto it = sm->shaders.begin(); it != sm->shaders.end(); ++it)
-            for (auto it1 = it->second.constantBuffers.begin(); it1 != it->second.constantBuffers.end(); ++it1)
-                it1->second.init(core, it1->second.cbSizeInBytes, 1024);
+        psos->createPSO(core, "AnimatedModel", sm->shaders["AnimatedVertexShader"].shader, sm->shaders["TexturePixelShader"].shader, VertexLayoutCache::getAnimatedLayout());
+        psos->createPSO(core, "AnimatedModelWire", sm->shaders["AnimatedVertexShader"].shader, sm->shaders["TexturePixelShader"].shader, VertexLayoutCache::getAnimatedLayout(), true);
     }
     //change variable by searching constantbuffer's name and variable's name
     void update(Matrix world, Matrix vp, AnimationInstance* instance) {
@@ -359,7 +358,7 @@ public:
         sm->updateConstant("AnimatedVertexShader", "animatedMeshBuffer", "VP", &vp);
         sm->updateConstant("AnimatedVertexShader", "animatedMeshBuffer", "bones", instance->matrices);
     }
-    void apply(Core* core) {//actually we dont need loop in this example
+    void apply() {
         //In our case:
         // Index 0: Vertex Shader constant buffer(if it exists) 
         // Index 1 : Pixel Shader constant buffer
@@ -367,16 +366,17 @@ public:
             core->getCommandList()->SetGraphicsRootConstantBufferView(0, it->second.getGPUAddress());
             it->second.next();
         }
-        for (auto it = sm->shaders["PixelShader"].constantBuffers.begin(); it != sm->shaders["PixelShader"].constantBuffers.end(); ++it) {
+        for (auto it = sm->shaders["TexturePixelShader"].constantBuffers.begin(); it != sm->shaders["TexturePixelShader"].constantBuffers.end(); ++it) {
             core->getCommandList()->SetGraphicsRootConstantBufferView(1, it->second.getGPUAddress());
             it->second.next();
         }
     }
-    void draw(Core* core, bool wireFrameMode = false) {
-        apply(core);
+    void draw(bool wireFrameMode = false) {
+        apply();
         if(wireFrameMode)   psos->bind(core, "AnimatedModelWire");
         else                psos->bind(core, "AnimatedModel");
         for (int i = 0; i < meshes.size(); i++) {
+            sm->shaders["TexturePixelShader"].updateTexturePS(core, "tex", tm->find(textureFilenames[i]));
             meshes[i].draw(core);
         }
     }

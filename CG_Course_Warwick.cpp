@@ -68,14 +68,12 @@ public:
     GeometryPlane grid;
     PSOManager* psos;
     ShaderManager* sm;
-    /*struct Vertex {
-        Vec3 pos;
-        Vec4 colour;
-    };*/
-    void init(Core* core, ShaderManager* _sm, PSOManager* _psos) {
+    Core* core;
+    void init(Core* _core, ShaderManager* _sm, PSOManager* _psos) {
         sm = _sm;
         psos = _psos;
-        buildLandGeometry(core);
+        core = _core;
+        buildLandGeometry();
         psos->createPSO(core, "LandAndWaves", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout());
         psos->createPSO(core, "LandAndWavesWire", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout(), true);
 
@@ -85,7 +83,7 @@ public:
         sm->updateConstant("StaticColourVertexShader", "staticMeshBuffer", "W", &world);
         sm->updateConstant("StaticColourVertexShader", "staticMeshBuffer", "VP", &vp);
     }
-    void apply(Core* core) {//actually we dont need loop in this example
+    void apply() {//actually we dont need loop in this example
         //In our case:
         // Index 0: Vertex Shader constant buffer(if it exists) 
         // Index 1 : Pixel Shader constant buffer
@@ -98,13 +96,13 @@ public:
             it->second.next();
         }
     }
-    void draw(Core* core, bool wireFrameMode = false) {
-        apply(core);
+    void draw(bool wireFrameMode = false) {
+        apply();
         if (wireFrameMode)   psos->bind(core, "LandAndWavesWire");
         else                psos->bind(core, "LandAndWaves");
         grid.mesh.draw(core);
     }
-    void buildLandGeometry(Core* core) {
+    void buildLandGeometry() {
         grid.CreateGrid(core, 160, 160, 50, 50);//for now
         //std::vector<Vertex> vertices(grid.vertices.size());//may delete later
         for (int i = 0; i < grid.vertices.size(); ++i) {
@@ -143,11 +141,13 @@ public:
     GeometryPlane grid;
     PSOManager* psos;
     ShaderManager* sm;
+    Core* core;
 
-    void init(Core* core, ShaderManager* _sm, PSOManager* _psos) {
+    void init(Core* _core, ShaderManager* _sm, PSOManager* _psos) {
         sm = _sm;
         psos = _psos;
-        buildWaterGeometry(core);
+        core = _core;
+        buildWaterGeometry();
         psos->createPSO(core, "LandAndWaves", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout());
         psos->createPSO(core, "LandAndWavesWire", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout(), true);
     }
@@ -156,7 +156,7 @@ public:
         sm->updateConstant("StaticColourVertexShader", "staticMeshBuffer", "W", &world);
         sm->updateConstant("StaticColourVertexShader", "staticMeshBuffer", "VP", &vp);
     }
-    void apply(Core* core) {
+    void apply() {
         //In our case:
         // Index 0: Vertex Shader constant buffer(if it exists) 
         // Index 1 : Pixel Shader constant buffer
@@ -169,13 +169,13 @@ public:
             it->second.next();
         }
     }
-    void draw(Core* core, bool wireFrameMode = false) {
-        apply(core);
+    void draw(bool wireFrameMode = false) {
+        apply();
         if (wireFrameMode)   psos->bind(core, "LandAndWavesWire");
         else                psos->bind(core, "LandAndWaves");
         grid.mesh.draw(core);
     }
-    void buildWaterGeometry(Core* core) {
+    void buildWaterGeometry() {
         grid.CreateGrid(core, 160, 160, 50, 50);//for now
         //std::vector<Vertex> vertices(grid.vertices.size());//may delete later
         for (int i = 0; i < grid.vertices.size(); ++i) {
@@ -297,6 +297,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
     sm.init(&core);
     //psosmanager init
     PSOManager pm;
+    //texturemanager init
+    TextureManager tm;
     //Camera init
     persM = Matrix::perspective(_near, _far, canvasWidth / canvasHeight, 60.0f);
     Vec3 from = Vec3(0, 10, -100);
@@ -306,14 +308,14 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
     cube.init(&core, &sm, &pm);
     //draw static mesh
     StaticMesh staticMesh;
-    staticMesh.init(&core, &sm, &pm, "Resources/acacia_003.gem");
+    staticMesh.init(&core, &sm, &pm, "Models/acacia_003.gem");
     BezierCurve bc;
     std::vector<Vec3> cPoints = { Vec3(0,0,0),Vec3(5,0,0),Vec3(2,0,2) };
     bc.loadPoints(cPoints);
     int frameCount = 0;
     //draw trex animation
     AnimatedModel trex;
-    trex.init(&core, &sm, &pm, "Resources/Trex.gem");
+    trex.init(&core, &sm, &pm, &tm, "Models/Trex.gem");
     AnimationInstance instance;
     instance.init(&trex.animation);
     // lab
@@ -342,17 +344,17 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
         InputCheck(win, wireFrameMode, running, from, look, pre_x, pre_y);
         Matrix v = Matrix::lookAt(from, look, Vec3(0, 1, 0));
         Matrix vp = v * persM;
-#if 0
+#if 1
         //cube test
         Matrix cubePos = Matrix::translation(cPoints[0]);
         cube.update(cubePos, vp);
-        cube.draw(&core, wireFrameMode);
+        cube.draw( wireFrameMode);
         cubePos = Matrix::translation(cPoints[1]);
         cube.update(cubePos, vp);
-        cube.draw(&core, wireFrameMode);
+        cube.draw(wireFrameMode);
         cubePos = Matrix::translation(cPoints[2]);
         cube.update(cubePos, vp);
-        cube.draw(&core, wireFrameMode);
+        cube.draw(wireFrameMode);
 #endif   
 #if 0
         //tree test (using bezier curve)
@@ -360,9 +362,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
         frameCount++;
         treePos = Matrix::translation(bc.curPoint((float)(abs(frameCount % 200 - 100)) / 100));
         staticMesh.update(scale * treePos, vp);
-        staticMesh.draw(&core, wireFrameMode);
+        staticMesh.draw(wireFrameMode);
 #endif     
-#if 0
+#if 1
         //Trex test
         Matrix trexPos = Matrix::translation(Vec3(-5, 0, 0));
         instance.update("run", dt);
@@ -370,17 +372,17 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
             instance.resetAnimationTime();
         }
         trex.update(scale * trexPos, vp, &instance);
-        trex.draw(&core, wireFrameMode);
+        trex.draw(wireFrameMode);
 #endif
         //lab
         Matrix lWPos;
         land.update(lWPos, vp);
-        land.draw(&core, wireFrameMode);
+        land.draw(wireFrameMode);
 
         Matrix waterPos;
         water.waterUpdate(dt);
         water.update(waterPos, vp);
-        water.draw(&core, wireFrameMode);
+        water.draw(wireFrameMode);
 
         //lab end
 

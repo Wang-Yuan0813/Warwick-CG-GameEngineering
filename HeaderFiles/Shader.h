@@ -35,10 +35,17 @@ public:
     ID3DBlob* shader;
 
     std::map<std::string, ConstantBuffer> constantBuffers;//map is better
+    std::map<std::string, int> textureBindPoints;
 
     std::string readShaderFile(std::string fileName);
     void compileShader(std::string fileName, shaderTypes shaderType, std::string shaderName);
     void getConstantBuffer(Core* core);
+    void updateTexturePS(Core* core, std::string name, int heapOffset) {
+        UINT bindPoint = textureBindPoints[name];
+        D3D12_GPU_DESCRIPTOR_HANDLE handle = core->srvHeap.gpuHandle;
+        handle.ptr = handle.ptr + (UINT64)(heapOffset - bindPoint) * (UINT64)core->srvHeap.incrementSize;
+        core->getCommandList()->SetGraphicsRootDescriptorTable(2, handle);
+    }
 };
 class ShaderManager {
 public:

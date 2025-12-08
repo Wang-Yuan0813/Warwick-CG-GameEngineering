@@ -100,6 +100,7 @@ void ShaderManager::init(Core* core) {
     loadShader(core, "StaticColourVertexShader", VS);
     loadShader(core, "PixelShader", PS);
     loadShader(core, "PixelColourShader", PS);
+    loadShader(core, "TexturePixelShader", PS);
 }
 void ShaderManager::loadShader(Core* core, std::string shaderName, shaderTypes shaderType) {
     Shader shader;
