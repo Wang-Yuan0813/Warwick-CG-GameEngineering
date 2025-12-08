@@ -2,6 +2,11 @@
 
 //#define NOMINMAX
 #include <Windows.h>
+
+#include <cstdio>
+#include <io.h>
+#include <fcntl.h>
+
 #include <string>
 
 #define WINDOW_GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
@@ -28,4 +33,23 @@ public:
 		mousey = y;
 	};
 	void processMessages();
+
+	void CreateDebugConsole()
+	{
+		AllocConsole();
+
+		FILE* fp;
+		freopen_s(&fp, "CONOUT$", "w", stdout);   // printf
+		freopen_s(&fp, "CONOUT$", "w", stderr);   // fprintf(stderr,…)
+		freopen_s(&fp, "CONIN$", "r", stdin);    // scanf
+
+		HANDLE hConOut = GetStdHandle(STD_OUTPUT_HANDLE);
+		int fdOut = _open_osfhandle((intptr_t)hConOut, _O_TEXT);
+		FILE* fOut = _fdopen(fdOut, "w");
+		*stdout = *fOut;
+		setvbuf(stdout, nullptr, _IONBF, 0);
+
+		printf("Debug console created.\n");
+	}
+
 };

@@ -1,5 +1,5 @@
 #include "HeaderFiles/Shader.h"
-#define DEBUG_MODE 1
+
 void ConstantBuffer::init(Core* core, unsigned int sizeInBytes, unsigned int _maxDrawCalls) {
     cbSizeInBytes = (sizeInBytes + 255) & ~255;
     maxDrawCalls = _maxDrawCalls;
@@ -97,7 +97,9 @@ void Shader::getConstantBuffer(Core* core) {
 void ShaderManager::init(Core* core) {
     loadShader(core, "AnimatedVertexShader", VS);
     loadShader(core, "StaticVertexShader", VS);
+    loadShader(core, "StaticColourVertexShader", VS);
     loadShader(core, "PixelShader", PS);
+    loadShader(core, "PixelColourShader", PS);
 }
 void ShaderManager::loadShader(Core* core, std::string shaderName, shaderTypes shaderType) {
     Shader shader;

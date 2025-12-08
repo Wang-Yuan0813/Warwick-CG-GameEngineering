@@ -2,13 +2,13 @@
 #include "HeaderFiles/Core.h"
 #include "HeaderFiles/GEMLoader.h"
 #include "HeaderFiles/Shader.h"
-#include "HeaderFiles/BasicContainer.h"
 
 class PSOManager {
 public:
     std::unordered_map<std::string, ID3D12PipelineState*> psos;
 
-    void createPSO(Core* core, std::string name, ID3DBlob* vs, ID3DBlob* ps, D3D12_INPUT_LAYOUT_DESC layout) {
+    void createPSO(Core* core, std::string name, ID3DBlob* vs, ID3DBlob* ps, D3D12_INPUT_LAYOUT_DESC layout, 
+        bool wireFrameMode = false) {
         //Avoid creating extra state
         if (psos.find(name) != psos.end()) return;
         //Configure GPU pipeline with shaders, layout and Root Signature
@@ -19,7 +19,10 @@ public:
         desc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
         //Responsible for configuring the rasterizer
         D3D12_RASTERIZER_DESC rasterDesc = {};
-        rasterDesc.FillMode = D3D12_FILL_MODE_SOLID;
+        if(wireFrameMode)
+            rasterDesc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+        else
+            rasterDesc.FillMode = D3D12_FILL_MODE_SOLID;
         rasterDesc.CullMode = D3D12_CULL_MODE_NONE;
         rasterDesc.FrontCounterClockwise = FALSE;
         rasterDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
@@ -103,6 +106,22 @@ public:
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         };
         static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutAnimated, 6 };
+        return desc;
+    }
+    static const D3D12_INPUT_LAYOUT_DESC& getStaticColourLayout() {
+        static const D3D12_INPUT_ELEMENT_DESC inputLayoutStatic[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOUR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, 
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        };
+        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutStatic, 5 };
         return desc;
     }
 };

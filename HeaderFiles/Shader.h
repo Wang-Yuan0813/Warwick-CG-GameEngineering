@@ -4,6 +4,8 @@
 #include <fstream>
 #include <sstream>
 #include "HeaderFiles/Core.h"
+
+
 struct ConstantBufferVariable
 {
     unsigned int offset;

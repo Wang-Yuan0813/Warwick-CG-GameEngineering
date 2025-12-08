@@ -2,10 +2,18 @@
 #include "HeaderFiles/GamesEngineeringBase.h"
 #define SQ(x) ((x)*(x))
 template<typename T>
-static T clamp(const T value, const T minValue, const T maxValue)
-{
+static T clamp(const T value, const T minValue, const T maxValue){
     return max(min(value, maxValue), minValue);
 }
+
+static int mrand(const int minValue, const int maxValue) {
+    return rand() % (maxValue - minValue) + minValue;
+}
+
+static float mrandf(const float minValue, const float maxValue) {
+    return minValue + static_cast<float>(rand()) / RAND_MAX * (maxValue - minValue);
+}
+
 class Vec3 {
 public:
     union {
@@ -92,6 +100,12 @@ public:
     float& operator[](const int index) {
         return v[index];
     }
+    static float findAngle(Vec3& v1, Vec3& v2) {
+        float cosTheta = v1.dot(v2)/ (v1.length() * v2.length());
+        if (cosTheta > 1.0f) cosTheta = 1.0f;
+        if (cosTheta < -1.0f) cosTheta = -1.0f;
+        return (std::acos(cosTheta)) * 180 / M_PI; 
+    }
     float length() const {
         return sqrtf(SQ(v[0]) + SQ(v[1]) + SQ(v[2]));
     }
@@ -115,6 +129,9 @@ public:
         return Vec3(v1.v[1] * v[2] - v1.v[2] * v[1],
             v1.v[2] * v[0] - v1.v[0] * v[2],
             v1.v[0] * v[1] - v1.v[1] * v[0]);
+    }
+    static Vec3 dir(const Vec3& v1, const Vec3& v2) {
+        return (v2 - v1).normalize();
     }
     void print() const {
         std::cout << '(' << v[0] << ',' << v[1] << ',' << v[2] << ')' << std::endl;
@@ -818,12 +835,12 @@ public:
     };
     Quaternion() : a(0), b(0), c(0), d(0) {}
     Quaternion(float _a, float _b, float _c, float _d) : a(_a), b(_b), c(_c), d(_d) {}
-    Quaternion(float theta, Vec3 dir) {
+    Quaternion(float theta, Vec3 axis) {
         d = cosf(theta / 2);
-        dir = dir.normalize();
-        a = dir.x * sinf(theta / 2);
-        b = dir.y * sinf(theta / 2);
-        c = dir.z * sinf(theta / 2);
+        axis = axis.normalize();
+        a = axis.x * sinf(theta / 2);
+        b = axis.y * sinf(theta / 2);
+        c = axis.z * sinf(theta / 2);
     }
     Matrix toMatrix() const {
         float aa = a * a, ab = a * b, ac = a * c;
@@ -858,6 +875,14 @@ public:
         float m2 = magnitudeSquare();
         return Quaternion(-a / m2, -b / m2, -c / m2, d / m2);
     }
+    static void rotatePoint(const Quaternion& q, Vec3& point) {
+        Quaternion pq(point.x, point.y, point.z, 0);
+        pq = q * pq * q.conjugate();
+        point.x = pq.a;
+        point.y = pq.b;
+        point.z = pq.c;
+    }
+
     //Quaternion slerp(const Quaternion& q, float t) const {
     //    Quaternion res;
     //    if (t < 0 || t > 1) {

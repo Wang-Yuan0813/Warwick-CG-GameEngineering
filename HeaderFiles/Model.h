@@ -1,10 +1,6 @@
 #pragma once
 
 #include "HeaderFiles/Mesh.h"
-#include "HeaderFiles/Core.h"
-#include "HeaderFiles/GEMLoader.h"
-#include "HeaderFiles/Shader.h"
-#include "HeaderFiles/BasicContainer.h"
 
 struct Bone
 {
@@ -23,6 +19,7 @@ struct AnimationFrame
     std::vector<Quaternion> rotations;
     std::vector<Vec3> scales;
 };
+
 class Cube {
 public:
     PSOManager* psos;
@@ -40,31 +37,33 @@ public:
         Vec3 p6 = Vec3(1.0f, 1.0f, 1.0f) + offset;
         Vec3 p7 = Vec3(-1.0f, 1.0f, 1.0f) + offset;
 
-        vertices.push_back(addVertex(p0, Vec3(0.0f, 0.0f, -1.0f), 0.0f, 1.0f));
-        vertices.push_back(addVertex(p1, Vec3(0.0f, 0.0f, -1.0f), 1.0f, 1.0f));
-        vertices.push_back(addVertex(p2, Vec3(0.0f, 0.0f, -1.0f), 1.0f, 0.0f));
-        vertices.push_back(addVertex(p3, Vec3(0.0f, 0.0f, -1.0f), 0.0f, 0.0f));
-        vertices.push_back(addVertex(p5, Vec3(0.0f, 0.0f, 1.0f), 0.0f, 1.0f));
-        vertices.push_back(addVertex(p4, Vec3(0.0f, 0.0f, 1.0f), 1.0f, 1.0f));
-        vertices.push_back(addVertex(p7, Vec3(0.0f, 0.0f, 1.0f), 1.0f, 0.0f));
-        vertices.push_back(addVertex(p6, Vec3(0.0f, 0.0f, 1.0f), 0.0f, 0.0f));
-        vertices.push_back(addVertex(p4, Vec3(-1.0f, 0.0f, 0.0f), 0.0f, 1.0f));
-        vertices.push_back(addVertex(p0, Vec3(-1.0f, 0.0f, 0.0f), 1.0f, 1.0f));
-        vertices.push_back(addVertex(p3, Vec3(-1.0f, 0.0f, 0.0f), 1.0f, 0.0f));
-        vertices.push_back(addVertex(p7, Vec3(-1.0f, 0.0f, 0.0f), 0.0f, 0.0f));
+        Vec3 t = Vec3(0.0f, 0.0f, 0.0f);//for now
 
-        vertices.push_back(addVertex(p1, Vec3(1.0f, 0.0f, 0.0f), 0.0f, 1.0f));
-        vertices.push_back(addVertex(p5, Vec3(1.0f, 0.0f, 0.0f), 1.0f, 1.0f));
-        vertices.push_back(addVertex(p6, Vec3(1.0f, 0.0f, 0.0f), 1.0f, 0.0f));
-        vertices.push_back(addVertex(p2, Vec3(1.0f, 0.0f, 0.0f), 0.0f, 0.0f));
-        vertices.push_back(addVertex(p3, Vec3(0.0f, 1.0f, 0.0f), 0.0f, 1.0f));
-        vertices.push_back(addVertex(p2, Vec3(0.0f, 1.0f, 0.0f), 1.0f, 1.0f));
-        vertices.push_back(addVertex(p6, Vec3(0.0f, 1.0f, 0.0f), 1.0f, 0.0f));
-        vertices.push_back(addVertex(p7, Vec3(0.0f, 1.0f, 0.0f), 0.0f, 0.0f));
-        vertices.push_back(addVertex(p4, Vec3(0.0f, -1.0f, 0.0f), 0.0f, 1.0f));
-        vertices.push_back(addVertex(p5, Vec3(0.0f, -1.0f, 0.0f), 1.0f, 1.0f));
-        vertices.push_back(addVertex(p1, Vec3(0.0f, -1.0f, 0.0f), 1.0f, 0.0f));
-        vertices.push_back(addVertex(p0, Vec3(0.0f, -1.0f, 0.0f), 0.0f, 0.0f));
+        vertices.push_back(addVertex(p0, Vec3(0.0f, 0.0f, -1.0f), t, 0.0f, 1.0f));
+        vertices.push_back(addVertex(p1, Vec3(0.0f, 0.0f, -1.0f), t, 1.0f, 1.0f));
+        vertices.push_back(addVertex(p2, Vec3(0.0f, 0.0f, -1.0f), t, 1.0f, 0.0f));
+        vertices.push_back(addVertex(p3, Vec3(0.0f, 0.0f, -1.0f), t, 0.0f, 0.0f));
+        vertices.push_back(addVertex(p5, Vec3(0.0f, 0.0f, 1.0f), t, 0.0f, 1.0f));
+        vertices.push_back(addVertex(p4, Vec3(0.0f, 0.0f, 1.0f), t, 1.0f, 1.0f));
+        vertices.push_back(addVertex(p7, Vec3(0.0f, 0.0f, 1.0f), t, 1.0f, 0.0f));
+        vertices.push_back(addVertex(p6, Vec3(0.0f, 0.0f, 1.0f), t, 0.0f, 0.0f));
+        vertices.push_back(addVertex(p4, Vec3(-1.0f, 0.0f, 0.0f), t, 0.0f, 1.0f));
+        vertices.push_back(addVertex(p0, Vec3(-1.0f, 0.0f, 0.0f), t, 1.0f, 1.0f));
+        vertices.push_back(addVertex(p3, Vec3(-1.0f, 0.0f, 0.0f), t, 1.0f, 0.0f));
+        vertices.push_back(addVertex(p7, Vec3(-1.0f, 0.0f, 0.0f), t, 0.0f, 0.0f));
+
+        vertices.push_back(addVertex(p1, Vec3(1.0f, 0.0f, 0.0f), t, 0.0f, 1.0f));
+        vertices.push_back(addVertex(p5, Vec3(1.0f, 0.0f, 0.0f), t, 1.0f, 1.0f));
+        vertices.push_back(addVertex(p6, Vec3(1.0f, 0.0f, 0.0f), t, 1.0f, 0.0f));
+        vertices.push_back(addVertex(p2, Vec3(1.0f, 0.0f, 0.0f), t, 0.0f, 0.0f));
+        vertices.push_back(addVertex(p3, Vec3(0.0f, 1.0f, 0.0f), t, 0.0f, 1.0f));
+        vertices.push_back(addVertex(p2, Vec3(0.0f, 1.0f, 0.0f), t, 1.0f, 1.0f));
+        vertices.push_back(addVertex(p6, Vec3(0.0f, 1.0f, 0.0f), t, 1.0f, 0.0f));
+        vertices.push_back(addVertex(p7, Vec3(0.0f, 1.0f, 0.0f), t, 0.0f, 0.0f));
+        vertices.push_back(addVertex(p4, Vec3(0.0f, -1.0f, 0.0f), t, 0.0f, 1.0f));
+        vertices.push_back(addVertex(p5, Vec3(0.0f, -1.0f, 0.0f), t, 1.0f, 1.0f));
+        vertices.push_back(addVertex(p1, Vec3(0.0f, -1.0f, 0.0f), t, 1.0f, 0.0f));
+        vertices.push_back(addVertex(p0, Vec3(0.0f, -1.0f, 0.0f), t, 0.0f, 0.0f));
 
         std::vector<unsigned int> indices;
         indices.push_back(0); indices.push_back(1); indices.push_back(2);
@@ -83,21 +82,14 @@ public:
         mesh.init(core, vertices, indices);
 
     }
-    STATIC_VERTEX addVertex(Vec3 p, Vec3 n, float tu, float tv) {
-        STATIC_VERTEX v;
-        v.pos = p;
-        v.normal = n;
-        v.tangent = Vec3(0, 0, 0); // For now
-        v.tu = tu;
-        v.tv = tv;
-        return v;
-    }
+    
     void init(Core* core, ShaderManager* _sm, PSOManager* _psos, Vec3 offset = Vec3(0, 0, 0)) {
         sm = _sm;
         psos = _psos;
         init(core, offset);
         //cbinit(core);
         psos->createPSO(core, "Cube", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, mesh.inputLayoutDesc);
+        psos->createPSO(core, "CubeWire", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, mesh.inputLayoutDesc, true);
     }
     void cbinit(Core* core) {
         for (auto it = sm->shaders.begin(); it != sm->shaders.end(); ++it)
@@ -122,9 +114,10 @@ public:
             it->second.next();
         }
     }
-    void draw(Core* core) {
+    void draw(Core* core, bool wireFrameMode = false) {
         apply(core);
-        psos->bind(core, "Cube");
+        if(wireFrameMode)   psos->bind(core, "CubeWire");
+        else    psos->bind(core, "Cube");
         mesh.draw(core);
     }
 };
@@ -158,7 +151,10 @@ public:
         loadMeshes(core, filename);
         //cbinit(core);
         psos->createPSO(core, "StaticModel", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getStaticLayout());
+        psos->createPSO(core, "StaticModelWire", sm->shaders["StaticVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getStaticLayout(), true);
+
     }
+    //not used
     void cbinit(Core* core) {
         for (auto it = sm->shaders.begin(); it != sm->shaders.end(); ++it)
             for (auto it1 = it->second.constantBuffers.begin(); it1 != it->second.constantBuffers.end(); ++it1)
@@ -182,9 +178,10 @@ public:
             it->second.next();
         }
     }
-    void draw(Core* core) {
+    void draw(Core* core, bool wireFrameMode = false) {
         apply(core);
-        psos->bind(core, "StaticModel");
+        if(wireFrameMode)   psos->bind(core, "StaticModelWire");
+        else                psos->bind(core, "StaticModel");
         for (int i = 0; i < meshes.size(); i++)
         {
             meshes[i].draw(core);
@@ -349,6 +346,7 @@ public:
         loadMeshes(core, filename);
         //cbinit(core);
         psos->createPSO(core, "AnimatedModel", sm->shaders["AnimatedVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getAnimatedLayout());
+        psos->createPSO(core, "AnimatedModelWire", sm->shaders["AnimatedVertexShader"].shader, sm->shaders["PixelShader"].shader, VertexLayoutCache::getAnimatedLayout(), true);
     }
     void cbinit(Core* core) {
         for (auto it = sm->shaders.begin(); it != sm->shaders.end(); ++it)
@@ -374,9 +372,10 @@ public:
             it->second.next();
         }
     }
-    void draw(Core* core) {
+    void draw(Core* core, bool wireFrameMode = false) {
         apply(core);
-        psos->bind(core, "AnimatedModel");
+        if(wireFrameMode)   psos->bind(core, "AnimatedModelWire");
+        else                psos->bind(core, "AnimatedModel");
         for (int i = 0; i < meshes.size(); i++) {
             meshes[i].draw(core);
         }

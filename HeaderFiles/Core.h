@@ -6,6 +6,9 @@
 #pragma comment(lib, "d3d12")
 #pragma comment(lib, "dxgi")
 #pragma comment(lib, "d3dcompiler.lib")
+
+#define DEBUG_MODE 1
+
 class Barrier {
 public:
 	static void add(ID3D12Resource* res, D3D12_RESOURCE_STATES first, D3D12_RESOURCE_STATES second,
