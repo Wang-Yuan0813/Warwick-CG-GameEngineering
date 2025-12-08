@@ -206,6 +206,21 @@ public:
 
 Then I can use this class to create a upload buffer to simulate waves.(I hope so)
 
-
 </details>
 
+<details>
+<summary>2025/12/8</summary>
+    
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1208-1.gif)
+
+add texture to the Trex.
+
+press '1' to see the wireframe version(by changing PSO when drawing)
+
+for example:
+```cpp
+psos->createPSO(core, "LandAndWaves", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout());
+psos->createPSO(core, "LandAndWavesWire", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout(), true);
+```
+
+</details>
