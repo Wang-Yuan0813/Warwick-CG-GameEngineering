@@ -178,3 +178,34 @@ V will be applied first because of the right multiplication of a matrix.
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1206.gif)
 
 </details>
+<details>
+<summary>2025/12/7</summary>
+    
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1208.gif)
+
+add camera move test by using quaternion (but still have some problem with rotation).
+
+Created a DynamicMesh, which can update vertex info by using memcpy.
+
+I referred to the book written by Frank D. Luna.
+
+```cpp
+class DynamicMesh {
+public:
+    ID3D12Resource* vertexBuffer;
+    ID3D12Resource* indexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW vbView;
+    D3D12_INDEX_BUFFER_VIEW ibView;
+    D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
+    unsigned int numMeshIndices;
+    uint8_t* vMapped;
+    //void* iMapped;
+//blahblahblah
+}
+```
+
+Then I can use this class to create a upload buffer to simulate waves.(I hope so)
+
+
+</details>
+
