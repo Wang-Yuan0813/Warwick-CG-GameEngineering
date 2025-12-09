@@ -21,7 +21,6 @@ struct PS_INPUT
     float2 TexCoords : TEXCOORD;
     float4 Colour : COLOUR;
 };
-
 PS_INPUT VS(VS_INPUT input)
 {
     PS_INPUT output;

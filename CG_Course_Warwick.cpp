@@ -24,9 +24,12 @@ public:
     std::vector<unsigned int> indices;
     int rowCount;
     int colCount;
-    void CreateGrid(Core* core, float width, float depth, int m, int n) {
+    void CreateGrid(Core* core,int m, int n) {
         rowCount = m;
         colCount = n;
+        float size = 0.8;
+        float width = size * (n - 1);
+        float depth = size * (m - 1);
         //generate vertices
         int vertexCount = m * n;
         int faceCount = (m - 1) * (n - 1) * 2;
@@ -40,7 +43,7 @@ public:
         for (int i = 0; i < m; ++i){
             float z = halfDepth - i * dz;
             for (int j = 0; j < n; ++j){
-                float x = -halfWidth + j * dx;
+                float x = -halfWidth + j * dx;//how to calculate normal vector?
                 vertices[i * n + j] = addVertex(Vec3(x, 0.0f, z), Vec3(0.0f, 1.0f, 0.0f), Vec3(1.0f, 0.0f, 0.0f),
                     j * du, i * dv);
             }
@@ -103,7 +106,7 @@ public:
         grid.mesh.draw(core);
     }
     void buildLandGeometry() {
-        grid.CreateGrid(core, 160, 160, 50, 50);//for now
+        grid.CreateGrid(core, 50, 50);//for now
         //std::vector<Vertex> vertices(grid.vertices.size());//may delete later
         for (int i = 0; i < grid.vertices.size(); ++i) {
             STATIC_VERTEX& p = grid.vertices[i];
@@ -136,17 +139,84 @@ public:
         return 0.3f * (z * sinf(0.1f * x) + x * cosf(0.1f * z));
     }
 };
+class Waves {
+public:
+    float c;
+    float beta;
+    int rows;
+    int cols;
+    float h;
+    float dt;
+    float mK1, mK2, mK3;
+    std::vector<float> prev, curr, next;
+    void init(int _rows, int _cols, float _h, float _dt, float _speed, float _beta){
+
+        rows = _rows;
+        cols = _cols;
+        h = _h;
+        dt = _dt;
+        c = _speed;
+        beta = _beta;
+
+
+        prev.resize(rows * cols);
+        curr.resize(rows * cols);
+        next.resize(rows * cols);
+
+        float s = beta * dt;
+        float e = (c * c) * (dt * dt) / (h * h);
+        float d = s + 2;
+        mK1 = (s - 2) / d;
+        mK2 = (4 - 2 * e) / d;
+        mK3 = (2 * e) / d;
+
+
+        std::fill(prev.begin(), prev.end(), 0.0f);
+        std::fill(curr.begin(), curr.end(), 0.0f);
+        std::fill(next.begin(), next.end(), 0.0f);
+    }
+    void disturb(int i, int j, float r) {
+        curr[i * cols + j] += r;
+        curr[i * cols + j + 1] += r / 2;
+        curr[i * cols + j - 1] += r / 2;
+        curr[(i + 1) * cols + j] += r / 2;
+        curr[(i - 1) * cols + j] += r / 2;
+        prev = curr;
+    }
+    void update() {
+        for (int i = 1; i < rows - 1; ++i){
+            for (int j = 1; j < cols - 1; ++j){
+                int idx = i * cols + j;
+                float uij = curr[idx];
+                float u00 = prev[idx];
+
+                float uip1 = curr[(i + 1) * cols + j];
+                float uim1 = curr[(i - 1) * cols + j];
+                float ujp1 = curr[i * cols + j + 1];
+                float ujm1 = curr[i * cols + j - 1];
+
+                float lap = (uip1 + uim1 + ujp1 + ujm1 - 4.0f * uij);
+
+                next[idx] = mK1 * u00 + mK2 * uij + mK3 * lap;
+            }
+        }
+        prev.swap(curr);
+        curr.swap(next);
+    }
+};
 class Water {
 public:
     GeometryPlane grid;
     PSOManager* psos;
     ShaderManager* sm;
     Core* core;
+    Waves waves;
 
     void init(Core* _core, ShaderManager* _sm, PSOManager* _psos) {
         sm = _sm;
         psos = _psos;
         core = _core;
+        
         buildWaterGeometry();
         psos->createPSO(core, "LandAndWaves", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout());
         psos->createPSO(core, "LandAndWavesWire", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout(), true);
@@ -176,7 +246,8 @@ public:
         grid.mesh.draw(core);
     }
     void buildWaterGeometry() {
-        grid.CreateGrid(core, 160, 160, 50, 50);//for now
+        grid.CreateGrid(core, 128, 128);//for now
+        waves.init(128,128, 0.8, 0.02, 3.25, 0.4);//the third parameter should be change according to CreateGrid()
         //std::vector<Vertex> vertices(grid.vertices.size());//may delete later
         for (int i = 0; i < grid.vertices.size(); ++i) {
             STATIC_VERTEX& p = grid.vertices[i];
@@ -188,35 +259,32 @@ public:
     float getWaterHeight(float x, float z)const {
         return 0.3f * (z * sinf(0.1f * x) + x * cosf(0.1f * z));
     }
-    void disturb(int i, int j, float r) {
-        grid.vertices[i * grid.colCount + j].pos.y += 10;
-        std::cout << "Disturb position = " << "(" << i << "," << j << ")" << std::endl;
-    }
+
     void waterUpdate(float dt) {
         static float totalTime = 0.f;
         totalTime += dt;
-        //add disturb per 0.25 second
         if (totalTime >= 1) {
+            //create a wave source at a random point
             totalTime = 0.f;
             int i = mrand(4, grid.rowCount - 5);
             int j = mrand(4, grid.colCount - 5);
-            float r = mrandf(0.2f, 0.5f);
-            disturb(i, j, r);
-
-            grid.mesh.copyData(i * grid.colCount + j, sizeof(STATIC_VERTEX), &grid.vertices[i * grid.colCount + j]);
-
+            float r = mrandf(2, 5);
+            waves.disturb(i, j, r);
+            std::cout << "Disturb position = " << "(" << i << "," << j << ")" << std::endl;
         }
         //update wave simulation
-        waveUpdate(dt);
-    }
-    void waveUpdate(float dt) {
-
+        waves.update();
+        for (int i = 0; i < grid.vertices.size(); i++) {
+            grid.vertices[i].pos.y = waves.curr[i];
+        }
+        grid.mesh.copyData(0, grid.vertices.size() * sizeof(STATIC_VERTEX), &grid.vertices[0]);
     }
     int rand(int a, int b) {
         return std::rand() % a + b;
     }
 
 };
+
 //-------------------
 void InputCheck(Window& win, bool& wireFrameMode, bool& running, Vec3& from, Vec3& look, int pre_x, int pre_y) {
     if (win.keys[VK_ESCAPE] == 1) running = false;
@@ -344,7 +412,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
         InputCheck(win, wireFrameMode, running, from, look, pre_x, pre_y);
         Matrix v = Matrix::lookAt(from, look, Vec3(0, 1, 0));
         Matrix vp = v * persM;
-#if 1
+#if 0
         //cube test
         Matrix cubePos = Matrix::translation(cPoints[0]);
         cube.update(cubePos, vp);
@@ -364,7 +432,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
         staticMesh.update(scale * treePos, vp);
         staticMesh.draw(wireFrameMode);
 #endif     
-#if 1
+#if 0
         //Trex test
         Matrix trexPos = Matrix::translation(Vec3(-5, 0, 0));
         instance.update("run", dt);
@@ -375,10 +443,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
         trex.draw(wireFrameMode);
 #endif
         //lab
+#if 0
         Matrix lWPos;
         land.update(lWPos, vp);
         land.draw(wireFrameMode);
-
+#endif
         Matrix waterPos;
         water.waterUpdate(dt);
         water.update(waterPos, vp);
