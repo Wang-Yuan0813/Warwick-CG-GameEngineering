@@ -224,3 +224,20 @@ psos->createPSO(core, "LandAndWavesWire", sm->shaders["StaticColourVertexShader"
 ```
 
 </details>
+
+<details>
+<summary>2025/12/9</summary>
+
+added wave simulation(CPU) to project (referenced to Frank Luna)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1209.gif)
+
+That is a very simple demo without calculating normal of each vertex. That will cause some problems with lighting.
+
+And I assumed that dt is fixed (0.02f), this can be optimazed later.
+
+Actually, all these work should be implemented in the GPU, which is much more efficient (and complicated I think).
+
+For now, let's use CPU to simulate this effect.
+
+</details>
