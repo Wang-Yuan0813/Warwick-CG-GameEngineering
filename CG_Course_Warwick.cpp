@@ -27,7 +27,7 @@ public:
     void CreateGrid(Core* core,int m, int n) {
         rowCount = m;
         colCount = n;
-        float size = 0.8;
+        float size = 0.8;//for now
         float width = size * (n - 1);
         float depth = size * (m - 1);
         //generate vertices
@@ -37,7 +37,7 @@ public:
         float halfDepth = 0.5f * depth;
         float dx = width / (n - 1);
         float dz = depth / (m - 1);
-        float du = 1.0f / (n - 1);
+        float du = 1.0f / (n - 1);//u and v should be [0, 1]
         float dv = 1.0f / (m - 1);
         vertices.resize(vertexCount);
         for (int i = 0; i < m; ++i){
@@ -149,6 +149,7 @@ public:
     float dt;
     float mK1, mK2, mK3;
     std::vector<float> prev, curr, next;
+    std::vector<Vec3> normals;
     void init(int _rows, int _cols, float _h, float _dt, float _speed, float _beta){
 
         rows = _rows;
@@ -162,6 +163,7 @@ public:
         prev.resize(rows * cols);
         curr.resize(rows * cols);
         next.resize(rows * cols);
+        normals.resize(rows * cols);
 
         float s = beta * dt;
         float e = (c * c) * (dt * dt) / (h * h);
@@ -174,6 +176,7 @@ public:
         std::fill(prev.begin(), prev.end(), 0.0f);
         std::fill(curr.begin(), curr.end(), 0.0f);
         std::fill(next.begin(), next.end(), 0.0f);
+        std::fill(normals.begin(), normals.end(), Vec3(0, 1, 0));
     }
     void disturb(int i, int j, float r) {
         curr[i * cols + j] += r;
@@ -198,6 +201,14 @@ public:
                 float lap = (uip1 + uim1 + ujp1 + ujm1 - 4.0f * uij);
 
                 next[idx] = mK1 * u00 + mK2 * uij + mK3 * lap;
+
+                //normal simple calculation
+
+                float du_dx = (ujp1 - ujm1) / (2.0f * 0.8);
+                float du_dy = (uip1 - uim1) / (2.0f * 0.8);
+
+                Vec3 nCurr = Vec3(-du_dx, 1.0f, -du_dy);
+                normals[idx] = nCurr.normalize();
             }
         }
         prev.swap(curr);
@@ -216,7 +227,6 @@ public:
         sm = _sm;
         psos = _psos;
         core = _core;
-        
         buildWaterGeometry();
         psos->createPSO(core, "LandAndWaves", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout());
         psos->createPSO(core, "LandAndWavesWire", sm->shaders["StaticColourVertexShader"].shader, sm->shaders["PixelColourShader"].shader, VertexLayoutCache::getStaticColourLayout(), true);
@@ -263,7 +273,7 @@ public:
     void waterUpdate(float dt) {
         static float totalTime = 0.f;
         totalTime += dt;
-        if (totalTime >= 1) {
+        if (totalTime >= 0.5) {
             //create a wave source at a random point
             totalTime = 0.f;
             int i = mrand(4, grid.rowCount - 5);
@@ -276,6 +286,7 @@ public:
         waves.update();
         for (int i = 0; i < grid.vertices.size(); i++) {
             grid.vertices[i].pos.y = waves.curr[i];
+            grid.vertices[i].normal = waves.normals[i];
         }
         grid.mesh.copyData(0, grid.vertices.size() * sizeof(STATIC_VERTEX), &grid.vertices[0]);
     }
@@ -432,9 +443,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
         staticMesh.update(scale * treePos, vp);
         staticMesh.draw(wireFrameMode);
 #endif     
-#if 0
+#if 1
         //Trex test
-        Matrix trexPos = Matrix::translation(Vec3(-5, 0, 0));
+        Matrix trexPos = Matrix::translation(Vec3(0, 0, 0));
         instance.update("run", dt);
         if (instance.animationFinished() == true) {
             instance.resetAnimationTime();
