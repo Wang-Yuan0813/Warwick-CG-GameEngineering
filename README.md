@@ -228,7 +228,7 @@ psos->createPSO(core, "LandAndWavesWire", sm->shaders["StaticColourVertexShader"
 <details>
 <summary>2025/12/9</summary>
 
-added wave simulation(CPU) to project (referenced to Frank Luna)
+added wave simulation(CPU) to project (Frank Luna)
 
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1209.gif)
 
@@ -239,5 +239,49 @@ And I assumed that dt is fixed (0.02f), this can be optimazed later.
 Actually, all these work should be implemented in the GPU, which is much more efficient (and complicated I think).
 
 For now, let's use CPU to simulate this effect.
+
+Need vertices' height so that I can make my boat float. 
+
+In order to generate more real water effect, I calculated normal vector of each vertex during waves' updating.
+
+```cpp
+//in Waves class
+void update() {
+    for (int i = 1; i < rows - 1; ++i){
+        for (int j = 1; j < cols - 1; ++j){
+            int idx = i * cols + j;
+            float uij = curr[idx];
+            float u00 = prev[idx];
+
+            float uip1 = curr[(i + 1) * cols + j];
+            float uim1 = curr[(i - 1) * cols + j];
+            float ujp1 = curr[i * cols + j + 1];
+            float ujm1 = curr[i * cols + j - 1];
+
+            float lap = (uip1 + uim1 + ujp1 + ujm1 - 4.0f * uij);
+
+            next[idx] = mK1 * u00 + mK2 * uij + mK3 * lap;
+
+            //normal simple calculation
+
+            float du_dx = (ujp1 - ujm1) / (2.0f * 0.8);
+            float du_dy = (uip1 - uim1) / (2.0f * 0.8);
+
+            Vec3 nCurr = Vec3(-du_dx, 1.0f, -du_dy);
+            normals[idx] = nCurr.normalize();
+        }
+    }
+    prev.swap(curr);
+    curr.swap(next);
+}
+```
+
+Then I got this :
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1210.gif)
+
+Have no idea how to code a procedure texture shader, so I totally used AI to generate an example for water. 
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1210-1.gif)
 
 </details>
