@@ -4,6 +4,11 @@ Warwick CG Notes
 a simple&basic learning notes
 ------------
 
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1221.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1218.gif)
+
+
 <details>
 <summary>2025/11/22</summary>
 
@@ -329,21 +334,6 @@ Using point light. gray image like:
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1217.gif)
 
 pretty cool!!
-
-</details>
-<details>
-<summary>2025/12/18</summary>
-
-Water ripple effect + wave.
-
-ripple effect code snipet:
-
-```cpp
-input.TexCoords += float2(time * 0.005f, time * 0.01f);
-float4 normalSample = tex1.Sample(samplerLinear, input.TexCoords);
-```
-
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1218.gif)
 
 </details>
 
