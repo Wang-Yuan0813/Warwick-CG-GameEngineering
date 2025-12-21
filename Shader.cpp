@@ -90,7 +90,15 @@ void Shader::getConstantBuffer(Core* core) {
         buffer.name = cbDesc.Name;
         buffer.cbSizeInBytes = totalSize;
         buffer.init(core, totalSize);
-        constantBuffers.insert(std::pair<std::string, ConstantBuffer>(buffer.name, buffer));
+		constantBuffers.push_back(buffer);
+        //constantBuffers.insert(std::pair<std::string, ConstantBuffer>(buffer.name, buffer));
+    }
+    for (int i = 0; i < desc.BoundResources; i++) {
+        D3D12_SHADER_INPUT_BIND_DESC bindDesc;
+        reflection->GetResourceBindingDesc(i, &bindDesc);
+        if (bindDesc.Type == D3D_SIT_TEXTURE) {
+            textureBindPoints.insert({ bindDesc.Name, bindDesc.BindPoint });
+        }
     }
     reflection->Release();
 }
@@ -98,9 +106,20 @@ void ShaderManager::init(Core* core) {
     loadShader(core, "AnimatedVertexShader", VS);
     loadShader(core, "StaticVertexShader", VS);
     loadShader(core, "StaticColourVertexShader", VS);
+    loadShader(core, "InstanceTreeVS", VS);
+    loadShader(core, "InstanceGrassVS", VS);
+
     loadShader(core, "PixelShader", PS);
-    loadShader(core, "PixelColourShader", PS);
-    loadShader(core, "TexturePixelShader", PS);
+    loadShader(core, "WaterPS", PS);
+    loadShader(core, "GroundPS", PS);
+    loadShader(core, "TextureTreePS", PS);
+    loadShader(core, "TextureBoatPS", PS);
+    loadShader(core, "SkyPS", PS);
+    loadShader(core, "AnimationPS", PS);
+
+    //MRT
+    loadShader(core, "MRTVS", VS);
+	loadShader(core, "MRTPS", PS);
 }
 void ShaderManager::loadShader(Core* core, std::string shaderName, shaderTypes shaderType) {
     Shader shader;
@@ -126,5 +145,11 @@ void ShaderManager::loadShader(Core* core, std::string shaderName, shaderTypes s
     shaders.insert(std::pair<std::string, Shader>(shaderName, shader));
 }
 void ShaderManager::updateConstant(std::string shaderName, std::string cbName, std::string varName, void* data) {
-    shaders[shaderName].constantBuffers[cbName].update(varName, data);
+    for(auto & cb : shaders[shaderName].constantBuffers){
+        if(cb.name == cbName){
+            cb.update(varName, data);
+            return;
+        }
+	}
+    //shaders[shaderName].constantBuffers[cbName].update(varName, data);
 }

@@ -3,7 +3,7 @@
 #include <map>
 #include <fstream>
 #include <sstream>
-#include "HeaderFiles/Core.h"
+#include "Core.h"
 
 
 struct ConstantBufferVariable
@@ -34,7 +34,8 @@ public:
     std::string name;
     ID3DBlob* shader;
 
-    std::map<std::string, ConstantBuffer> constantBuffers;//map is better
+    //std::map<std::string, ConstantBuffer> constantBuffers;//map is better
+    std::vector< ConstantBuffer> constantBuffers;
     std::map<std::string, int> textureBindPoints;
 
     std::string readShaderFile(std::string fileName);
@@ -44,7 +45,7 @@ public:
         UINT bindPoint = textureBindPoints[name];
         D3D12_GPU_DESCRIPTOR_HANDLE handle = core->srvHeap.gpuHandle;
         handle.ptr = handle.ptr + (UINT64)(heapOffset - bindPoint) * (UINT64)core->srvHeap.incrementSize;
-        core->getCommandList()->SetGraphicsRootDescriptorTable(2, handle);
+        core->getCommandList()->SetGraphicsRootDescriptorTable(core->getRootParameterIndex("tex"), handle);
     }
 };
 class ShaderManager {

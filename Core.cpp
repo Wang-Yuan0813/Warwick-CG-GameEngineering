@@ -1,4 +1,5 @@
 #include "HeaderFiles/Core.h"
+
 void Core::init(HWND hwnd, int _width, int _height) {
 	//init debug
 	ID3D12Debug1* debug;
@@ -53,7 +54,7 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	factory->CreateSwapChainForHwnd(graphicsQueue, hwnd, &scDesc, NULL, NULL, &swapChain1);
 	swapChain1->QueryInterface(&swapchain);
 	swapChain1->Release();
-	factory->Release();//?
+	factory->Release();
 	//Create Command Allocators and Command Lists
 	device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
 		IID_PPV_ARGS(&graphicsCommandAllocator[0]));
@@ -73,11 +74,21 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	//Get backbuffers and create views on heap
 	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = backbufferHeap->GetCPUDescriptorHandleForHeapStart();
 	unsigned int renderTargetViewDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	for (unsigned int i = 0; i < 2; i++){
+
+	for (unsigned int i = 0; i < 2; i++) {
 		swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffers[i]));
-		device->CreateRenderTargetView(backbuffers[i], nullptr, renderTargetViewHandle);
+		device->CreateRenderTargetView(backbuffers[i], NULL, renderTargetViewHandle);
 		renderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
 	}
+
+	/*for (unsigned int i = 0; i < 2; i++) {
+		swapchain->GetBuffer(i, IID_PPV_ARGS(&backbuffers[i]));
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		device->CreateRenderTargetView(backbuffers[i], &rtvDesc, renderTargetViewHandle);
+		renderTargetViewHandle.ptr += renderTargetViewDescriptorSize; 
+	}*/
 	//Create fences
 	graphicsQueueFence[0].create(device);
 	graphicsQueueFence[1].create(device);
@@ -131,7 +142,8 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	scissorRect.right = _width;
 	scissorRect.bottom = _height;
 
-	//update root signature for pulsing
+	//NOTES: DONT FORGET TO UPDATE getRootParameterIndex() FUNCTION IN Core.h !!!
+	//CBVS0
 	std::vector<D3D12_ROOT_PARAMETER> parameters;
 	D3D12_ROOT_PARAMETER rootParameterCBVS;
 	rootParameterCBVS.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -139,13 +151,26 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	rootParameterCBVS.Descriptor.RegisterSpace = 0;
 	rootParameterCBVS.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 	parameters.push_back(rootParameterCBVS);
+	//CBVS1
+	D3D12_ROOT_PARAMETER rootParameterCBVS1;
+	rootParameterCBVS1.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameterCBVS1.Descriptor.ShaderRegister = 1; // Register(b1)
+	rootParameterCBVS1.Descriptor.RegisterSpace = 0;
+	rootParameterCBVS1.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	parameters.push_back(rootParameterCBVS1);
+	//CBPS
 	D3D12_ROOT_PARAMETER rootParameterCBPS;
 	rootParameterCBPS.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameterCBPS.Descriptor.ShaderRegister = 0; // Register(b0)
 	rootParameterCBPS.Descriptor.RegisterSpace = 0;
 	rootParameterCBPS.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	parameters.push_back(rootParameterCBPS);
-
+	D3D12_ROOT_PARAMETER rootParameterCBPS1;
+	rootParameterCBPS1.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameterCBPS1.Descriptor.ShaderRegister = 1; // Register(b1)
+	rootParameterCBPS1.Descriptor.RegisterSpace = 0;
+	rootParameterCBPS1.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	parameters.push_back(rootParameterCBPS1);
 	//update root signature Add range of textures
 	D3D12_DESCRIPTOR_RANGE srvRange = {};
 	srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -159,7 +184,6 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	rootParameterTex.DescriptorTable.pDescriptorRanges = &srvRange;
 	rootParameterTex.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	parameters.push_back(rootParameterTex);
-
 	//Add sampler
 	D3D12_STATIC_SAMPLER_DESC staticSampler = {};
 	staticSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -175,7 +199,6 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	staticSampler.ShaderRegister = 0;
 	staticSampler.RegisterSpace = 0;
 	staticSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
 	//Update Root Signature Description
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.NumParameters = parameters.size();
@@ -190,9 +213,59 @@ void Core::init(HWND hwnd, int _width, int _height) {
 	device->CreateRootSignature(0, serialized->GetBufferPointer(), serialized->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
 	serialized->Release();
 	srvHeap.init(device, 16384);
+#if 1
+//MRT test
+	D3D12_DESCRIPTOR_HEAP_DESC MRTrtvHeapDesc = {};
+	MRTrtvHeapDesc.NumDescriptors = mrtCount;//3 render targets
+	MRTrtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	device->CreateDescriptorHeap(&MRTrtvHeapDesc, IID_PPV_ARGS(&rtvHeap));
+	mrtResources = new ID3D12Resource * [MRTrtvHeapDesc.NumDescriptors];
+	for (unsigned int i = 0; i < mrtCount; i++) {
+		D3D12_RESOURCE_DESC textureDesc = {};
+		textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		textureDesc.Width = _width;
+		textureDesc.Height = _height;
+		textureDesc.DepthOrArraySize = 1;
+		textureDesc.MipLevels = 1;
+		textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+		textureDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		textureDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+
+		D3D12_HEAP_PROPERTIES defaultHeap = {};
+		defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+		defaultHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		defaultHeap.CreationNodeMask = 1;
+		defaultHeap.VisibleNodeMask = 1;
+
+		ID3D12Resource* renderTarget;
+		device->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &textureDesc,
+			D3D12_RESOURCE_STATE_RENDER_TARGET, NULL, IID_PPV_ARGS(&renderTarget));
+
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.Format = textureDesc.Format;
+		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		rtvDesc.Texture2D.MipSlice = 0;
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle = rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		rtvHeapHandle.ptr += i * renderTargetViewDescriptorSize;
+		device->CreateRenderTargetView(renderTarget, &rtvDesc, rtvHeapHandle);
+		mrtResources[i] = renderTarget;
+		rtvHandles.push_back(rtvHeapHandle);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = textureDesc.Format;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+		D3D12_CPU_DESCRIPTOR_HANDLE srvHeapHandle = srvHeap.getNextCPUHandle();
+		device->CreateShaderResourceView(renderTarget, &srvDesc, srvHeapHandle);
+
+	}
+	//MRT end
+#endif
 }
-
-
 void Core::resetCommandList() {
 	unsigned int frameIndex = swapchain->GetCurrentBackBufferIndex();
 	graphicsCommandAllocator[frameIndex]->Reset();
@@ -218,7 +291,8 @@ void Core::beginFrame() {
 
 	graphicsQueueFence[frameIndex].wait();
 
-	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = backbufferHeap->GetCPUDescriptorHandleForHeapStart();
+	//D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle = backbufferHeap->GetCPUDescriptorHandleForHeapStart();
+	renderTargetViewHandle = backbufferHeap->GetCPUDescriptorHandleForHeapStart();
 	unsigned int renderTargetViewDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	renderTargetViewHandle.ptr += frameIndex * renderTargetViewDescriptorSize;
 
@@ -226,15 +300,26 @@ void Core::beginFrame() {
 	
 	Barrier::add(backbuffers[frameIndex], D3D12_RESOURCE_STATE_PRESENT,
 		D3D12_RESOURCE_STATE_RENDER_TARGET, getCommandList());
+
+#if 1
+	//MRT test
+	getCommandList()->OMSetRenderTargets(mrtCount, rtvHandles.data(), FALSE, &dsvHandle);
+	float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	for (int i = 0; i < mrtCount; i++) {
+		getCommandList()->ClearRenderTargetView(rtvHandles[i], clearColor, 0, NULL);
+	}
+	getCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
+	//MRT test end
+#else
 	getCommandList()->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, &dsvHandle);
 	float color[4];
-	color[0] = 0.6;
-	color[1] = 0.6;
-	color[2] = 0.6;
+	color[0] = 0.0;
+	color[1] = 0.0;
+	color[2] = 0.0;
 	color[3] = 1.0;
 	getCommandList()->ClearRenderTargetView(renderTargetViewHandle, color, 0, NULL);
 	getCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
-
+#endif
 }
 void Core::finishFrame(){
 	unsigned int frameIndex = swapchain->GetCurrentBackBufferIndex();
@@ -244,7 +329,27 @@ void Core::finishFrame(){
 	graphicsQueueFence[frameIndex].signal(graphicsQueue);
 	swapchain->Present(1, 0);
 }
+void Core::beginRenderPass() {
+	getCommandList()->SetDescriptorHeaps(1, &srvHeap.heap);
+	getCommandList()->RSSetViewports(1, &viewport);
+	getCommandList()->RSSetScissorRects(1, &scissorRect);
+	getCommandList()->SetGraphicsRootSignature(rootSignature);
+}
+void Core::beginMRTRenderPass() {
+	for (int i = 0; i < mrtCount; i++) {
+		Barrier::add(mrtResources[i], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET, getCommandList());
+	}
 
+	getCommandList()->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, nullptr);
+	float color[4];
+	color[0] = 0.0;
+	color[1] = 0.0;
+	color[2] = 0.0;
+	color[3] = 1.0;
+	getCommandList()->ClearRenderTargetView(renderTargetViewHandle, color, 0, NULL);
+	getCommandList()->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
+
+}
 void Core::uploadResource(ID3D12Resource* dstResource, const void* data, unsigned int size,
 	D3D12_RESOURCE_STATES targetState, D3D12_PLACED_SUBRESOURCE_FOOTPRINT* texFootprint) {
 
@@ -294,3 +399,4 @@ void Core::uploadResource(ID3D12Resource* dstResource, const void* data, unsigne
 
 
 }
+

@@ -3,11 +3,12 @@
 #include <dxgi1_6.h>
 #include <d3dcompiler.h>
 #include <vector>
+#include <string>
 #pragma comment(lib, "d3d12")
 #pragma comment(lib, "dxgi")
 #pragma comment(lib, "d3dcompiler.lib")
 
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 class Barrier {
 public:
@@ -101,6 +102,13 @@ public:
 	ID3D12RootSignature* rootSignature;
 	DescriptorHeap srvHeap;
 
+	//MRT
+	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetViewHandle;
+	ID3D12DescriptorHeap* rtvHeap;
+	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> rtvHandles;
+	ID3D12Resource** mrtResources;
+	int mrtCount = 3;
+
 	void init(HWND hwnd, int _width, int _height);
 	void resetCommandList();
 	ID3D12GraphicsCommandList4* getCommandList();
@@ -108,20 +116,19 @@ public:
 	void flushGraphicsQueue();
 	void beginFrame();
 	void finishFrame();
-
 	void uploadResource(ID3D12Resource* dstResource, const void* data, unsigned int size,
 		D3D12_RESOURCE_STATES targetState, D3D12_PLACED_SUBRESOURCE_FOOTPRINT* texFootprint = NULL);
-
-	void beginRenderPass(){
-		getCommandList()->SetDescriptorHeaps(1, &srvHeap.heap);
-		getCommandList()->RSSetViewports(1, &viewport);
-		getCommandList()->RSSetScissorRects(1, &scissorRect);
-		getCommandList()->SetGraphicsRootSignature(rootSignature);
-	}
+	void beginRenderPass();
+	void beginMRTRenderPass();
 	int frameIndex(){
 		return swapchain->GetCurrentBackBufferIndex();
 	}
-
+	//index helper
+	int getRootParameterIndex(std::string name) {
+		if (name == "cbvs") return 0;
+		if (name == "cbps") return 2;
+		if (name == "tex") return 4;
+	}
 };
 
 

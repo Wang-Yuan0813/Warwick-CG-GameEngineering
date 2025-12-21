@@ -1,7 +1,7 @@
 #pragma once
-#include "HeaderFiles/Core.h"
-#include "HeaderFiles/GEMLoader.h"
-#include "HeaderFiles/Shader.h"
+#include "Core.h"
+#include "GEMLoader.h"
+#include "Shader.h"
 
 class PSOManager {
 public:
@@ -45,6 +45,26 @@ public:
         D3D12_BLEND_DESC blendDesc = {};
         blendDesc.AlphaToCoverageEnable = FALSE;
         blendDesc.IndependentBlendEnable = FALSE;
+
+        /*D3D12_RENDER_TARGET_BLEND_DESC additiveBlend = {};
+        additiveBlend.BlendEnable = TRUE;
+        additiveBlend.LogicOpEnable = FALSE;
+
+        additiveBlend.SrcBlend = D3D12_BLEND_ONE;
+        additiveBlend.DestBlend = D3D12_BLEND_ONE;
+        additiveBlend.BlendOp = D3D12_BLEND_OP_ADD;
+
+        additiveBlend.SrcBlendAlpha = D3D12_BLEND_ZERO;
+        additiveBlend.DestBlendAlpha = D3D12_BLEND_ONE;
+        additiveBlend.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+        additiveBlend.LogicOp = D3D12_LOGIC_OP_NOOP;
+        additiveBlend.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_RED |
+            D3D12_COLOR_WRITE_ENABLE_GREEN |
+            D3D12_COLOR_WRITE_ENABLE_BLUE;
+        for (int i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; i++) {
+            blendDesc.RenderTarget[i] = additiveBlend;
+        }*/
         const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlend = {
         FALSE, FALSE,
         D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
@@ -59,8 +79,20 @@ public:
         //Render Target State + Topology
         desc.SampleMask = UINT_MAX;
         desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+#if 1
+        //MRT test
+		//create 3 render targets
+        desc.NumRenderTargets = core->mrtCount;
+		desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;//color + roughness
+		desc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;//normal + freshness
+        desc.RTVFormats[2] = DXGI_FORMAT_R32_FLOAT;//depth
+        //desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;//color
+        //desc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;//normal
+#else
         desc.NumRenderTargets = 1;
-        desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+#endif
+        
         desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         desc.SampleDesc.Count = 1;
         //Create Pipeline State Object
@@ -86,8 +118,10 @@ public:
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOUR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         };
-        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutStatic, 4 };
+        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutStatic, 5 };
         return desc;
     }
     static const D3D12_INPUT_LAYOUT_DESC& getAnimatedLayout() {
@@ -104,12 +138,14 @@ public:
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "BONEWEIGHTS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         };
-        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutAnimated, 6 };
+        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutAnimated, 7 };
         return desc;
     }
-    static const D3D12_INPUT_LAYOUT_DESC& getStaticColourLayout() {
-        static const D3D12_INPUT_ELEMENT_DESC inputLayoutStatic[] = {
+    static const D3D12_INPUT_LAYOUT_DESC& getInstanceLayout() {
+        static const D3D12_INPUT_ELEMENT_DESC inputLayoutStaticInstanced[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
@@ -118,10 +154,14 @@ public:
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOUR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, 
+        { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        { "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
+        { "WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA, 1 },
         };
-        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutStatic, 5 };
+        static const D3D12_INPUT_LAYOUT_DESC desc = { inputLayoutStaticInstanced, 9 };
         return desc;
     }
 };

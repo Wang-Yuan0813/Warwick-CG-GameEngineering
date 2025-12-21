@@ -54,13 +54,14 @@ void Window::initWnd(unsigned int window_width, unsigned int window_height, std:
 	
 	width = window_width;
 	height = window_height;
-	DWORD style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+
+	//cant adjust window size
+	DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_VISIBLE;
+	//DWORD style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 
 	hwnd = CreateWindowEx(WS_EX_APPWINDOW, wname.c_str(), wname.c_str(), style,
 		window_x, window_y, width, height, NULL, NULL, hinstance, this);
-
 	window = this;
-
 }
 void Window::processMessages() {
 	MSG msg;

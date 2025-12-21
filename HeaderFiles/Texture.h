@@ -1,7 +1,9 @@
 #pragma once
 #define STB_IMAGE_IMPLEMENTATION
-#include "HeaderFiles/stb_image.h"
-//#include "HeaderFiles/Core.h"
+#include "stb_image.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize2.h"
+#include "Core.h"
 class Texture {
 public:
 	ID3D12Resource* tex;
@@ -46,7 +48,6 @@ public:
 		srvDesc.Texture2D.MipLevels = 1;
 		core->device->CreateShaderResourceView(tex, &srvDesc, srvHandle);
 		heapOffset = core->srvHeap.used - 1;
-
 	}
 	void load(Core* core, std::string filename) {
 		name = filename;
@@ -64,12 +65,23 @@ public:
 				texelsWithAlpha[(i * 4) + 3] = 255;
 			}
 			// Initialize texture using width, height, channels, and texelsWithAlpha
-			upload(core, texelsWithAlpha, width, height, channels);
+			int resizeWidth = (width + 255) & ~255;
+			int resizeHeight = (height + 255) & ~255;
+			unsigned char* resizeTexels = (unsigned char*)malloc(resizeHeight * resizeWidth * channels);
+			stbir_resize_uint8_srgb(texelsWithAlpha, width, height, 0, resizeTexels, resizeWidth, resizeHeight, 0, STBIR_RGBA);
+			upload(core, resizeTexels, resizeWidth, resizeHeight, channels);
+			//upload(core, texelsWithAlpha, width, height, channels);
 			delete[] texelsWithAlpha;
 		}
 		else {
 			// Initialize texture using width, height, channels, and texels
-			upload(core, texels, width, height, channels);
+			int resizeWidth = (width + 255) & ~255;
+			int resizeHeight = (height + 255) & ~255;
+			unsigned char* resizeTexels = (unsigned char*)malloc(resizeHeight * resizeWidth * channels);
+			stbir_resize_uint8_srgb(texels, width, height, 0, resizeTexels, resizeWidth, resizeHeight, 0, STBIR_RGBA);
+
+			upload(core, resizeTexels, resizeWidth, resizeHeight, channels);
+			//upload(core, texels, width, height, channels);
 		}
 		stbi_image_free(texels);
 	}
@@ -77,11 +89,63 @@ public:
 class TextureManager {
 public:
 	std::map<std::string, Texture> textures;
-
-	void add(Texture texture) {
-		textures.insert({ texture.name, texture });
+	void add(Core* core, std::string filename) {
+		auto it = textures.find(filename);
+		if (it != textures.end()) return;
+		Texture t;
+		t.load(core, filename);
+		textures.insert({ t.name, t });
 	}
 	int find(std::string name) {
 		return textures[name].heapOffset;
 	}
 };
+#if 1
+class RenderTexture {
+public:
+	static void apply(ShaderManager& sm, Core& core) {
+		for (int i = 0; i < sm.shaders["MRTVS"].constantBuffers.size(); i++) {
+			int parameterIndex = core.getRootParameterIndex("cbvs") + i;
+			core.getCommandList()->SetGraphicsRootConstantBufferView(parameterIndex, sm.shaders["MRTVS"].constantBuffers[i].getGPUAddress());
+			sm.shaders["MRTVS"].constantBuffers[i].next();
+		}
+		for (int i = 0; i < sm.shaders["MRTPS"].constantBuffers.size(); i++) {
+			int parameterIndex = core.getRootParameterIndex("cbps") + i;
+			core.getCommandList()->SetGraphicsRootConstantBufferView(parameterIndex, sm.shaders["MRTPS"].constantBuffers[i].getGPUAddress());
+			sm.shaders["MRTPS"].constantBuffers[i].next();
+		}
+	}
+	static void draw(Core& core) {
+		ID3D12DescriptorHeap* heaps[] = { core.srvHeap.heap };
+		core.getCommandList()->SetDescriptorHeaps(_countof(heaps), heaps);
+		core.getCommandList()->SetGraphicsRootDescriptorTable(core.getRootParameterIndex("tex"), core.srvHeap.heap->GetGPUDescriptorHandleForHeapStart());
+		core.getCommandList()->DrawInstanced(3, 1, 0, 0);
+	}
+	//light
+	static float getLightOffset(float time) {
+		return sin(time) * 2.0f;
+	}
+	static void lightsArrayUpdate(float time, Vec4* gLightPosWSArray) {//10 lights , a stupid way to animate lights
+		gLightPosWSArray[0] = Vec4(-60.0f + getLightOffset(time + 0.5), 6 + getLightOffset(time), -60.0f + getLightOffset(time * 0.5));
+		gLightPosWSArray[1] = Vec4(60 + getLightOffset(time), 6 + getLightOffset(time+0.5), 60 + getLightOffset(time * 0.5));
+		gLightPosWSArray[2] = Vec4(60 + getLightOffset(time * 0.5), 6 + getLightOffset(time * 0.5), -60 + getLightOffset(time + 0.5));
+		gLightPosWSArray[3] = Vec4(30 + getLightOffset(time + 0.5), 6 + getLightOffset(time + 0.5), -80 + getLightOffset(time));
+		gLightPosWSArray[4] = Vec4(90 + getLightOffset(time), 6 + getLightOffset(time * 0.5), 0 + getLightOffset(time));
+		gLightPosWSArray[5] = Vec4(-90 + getLightOffset(time + 0.5), 6 + getLightOffset(time), 0 + getLightOffset(time + 0.5));
+		gLightPosWSArray[6] = Vec4(0 + getLightOffset(time * 0.5), 6 + getLightOffset(time * 0.5), 90 + getLightOffset(time));
+		gLightPosWSArray[7] = Vec4(0 + getLightOffset(time + 0.5), 6 + getLightOffset(time + 0.5), -90 + getLightOffset(time));
+		gLightPosWSArray[8] = Vec4(40 + getLightOffset(time), 4 + getLightOffset(time), 70 + getLightOffset(time + 0.5));
+		gLightPosWSArray[9] = Vec4(20 + getLightOffset(time + 0.5), 4 + getLightOffset(time), 80 + getLightOffset(time * 0.5));
+		/*gLightPosWSArray[0] = Vec3(-60.0f + getLightOffset(time),  getLightOffset(time), -60.0f + getLightOffset(time));
+		gLightPosWSArray[1] = Vec3(60.0f + getLightOffset(time), getLightOffset(time), -60.0f + getLightOffset(time));
+		gLightPosWSArray[2] = Vec3(-60.0f + getLightOffset(time), getLightOffset(time), 70.0f + getLightOffset(time));
+		gLightPosWSArray[3] = Vec3(70.0f + getLightOffset(time),  getLightOffset(time), 50.0f + getLightOffset(time));
+		gLightPosWSArray[4] = Vec3(-10.0f + getLightOffset(time), getLightOffset(time), -10.0f + getLightOffset(time));
+		gLightPosWSArray[5] = Vec3(10.0f + getLightOffset(time),getLightOffset(time), -10.0f + getLightOffset(time));
+		gLightPosWSArray[6] = Vec3(-10.0f + getLightOffset(time), getLightOffset(time), 10.0f + getLightOffset(time));
+		gLightPosWSArray[7] = Vec3(10.0f + getLightOffset(time),  getLightOffset(time), 10.0f + getLightOffset(time));
+		gLightPosWSArray[8] = Vec3(-20.0f + getLightOffset(time),  getLightOffset(time), 20.0f + getLightOffset(time));
+		gLightPosWSArray[9] = Vec3(20.0f + getLightOffset(time), getLightOffset(time), 20.0f + getLightOffset(time));*/
+	}
+};
+#endif

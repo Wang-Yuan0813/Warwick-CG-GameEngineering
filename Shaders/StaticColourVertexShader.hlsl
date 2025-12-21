@@ -1,7 +1,8 @@
 cbuffer staticMeshBuffer : register(b0)
 {
     float4x4 W;
-    float4x4 VP;
+    float4x4 View;
+    float4x4 Proj;
 };
 
 struct VS_INPUT
@@ -20,15 +21,20 @@ struct PS_INPUT
     float3 Tangent : TANGENT;
     float2 TexCoords : TEXCOORD;
     float4 Colour : COLOUR;
+    float3 ViewPos : TEXCOORD1;
 };
 PS_INPUT VS(VS_INPUT input)
 {
     PS_INPUT output;
     output.Pos = mul(input.Pos, W);
-    output.Pos = mul(output.Pos, VP);
+    output.Pos = mul(output.Pos, View);
+    float4 viewPos = output.Pos;
+    
+    output.Pos = mul(output.Pos, Proj);
     output.Normal = mul(input.Normal, W);
     output.Tangent = mul(input.Tangent, W);
     output.TexCoords = input.TexCoords;
     output.Colour = input.Colour;
+    output.ViewPos = viewPos.xyz;
     return output;
 }
