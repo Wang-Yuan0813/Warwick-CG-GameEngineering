@@ -4,10 +4,11 @@ Warwick CG Notes
 a simple&basic learning notes
 ------------
 
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1221.gif)
+Samples
 
-![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/CPUExample/Example/1218.gif)
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1221.gif)
 
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1218.gif)
 
 <details>
 <summary>2025/11/22</summary>
@@ -375,5 +376,7 @@ pick animals from water.
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1219-2.gif)
 
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1219-3.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1221.gif)
 
 </details>
