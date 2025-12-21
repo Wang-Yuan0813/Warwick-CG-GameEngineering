@@ -285,3 +285,105 @@ Have no idea how to code a procedure texture shader, so I totally used AI to gen
 ![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1210-1.gif)
 
 </details>
+
+<details>
+<summary>2025/12/13</summary>
+
+To create a wind-swaying effect for the leaves and grass, a simple vertex translate was used in the instance’s vertex shader based on its uv coordinates, ensuring the root remains stationary while the leaves sway. 
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1213.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1213-1.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1213-2.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1213-3.gif)
+
+</details>
+
+<details>
+<summary>2025/12/14</summary>
+
+Add sample light in pixel shader. Use 3 textures to optimize performance.
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1214.gif)
+
+</details>
+
+<details>
+<summary>2025/12/16</summary>
+
+depth information, after computing it during the geometry stage and writing it to SV_Target2, it can be linearized and converted into a grayscale value, resulting in the following image
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1216.gif)
+
+</details>
+
+<details>
+<summary>2025/12/17</summary>
+
+Adding MRT to this project, add 3 RT: two DXGI_FORMAT_R8G8B8A8_UNORM and one DXGI_FORMAT_R32_FLOAT.
+
+Using point light. gray image like:
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1217.gif)
+
+pretty cool!!
+
+</details>
+<details>
+<summary>2025/12/18</summary>
+
+Water ripple effect + wave.
+
+ripple effect code snipet:
+
+```cpp
+input.TexCoords += float2(time * 0.005f, time * 0.01f);
+float4 normalSample = tex1.Sample(samplerLinear, input.TexCoords);
+```
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1218.gif)
+
+</details>
+
+<details>
+<summary>2025/12/18</summary>
+
+Water ripple effect + wave.
+
+ripple effect code snipet:
+
+```cpp
+input.TexCoords += float2(time * 0.005f, time * 0.01f);
+float4 normalSample = tex1.Sample(samplerLinear, input.TexCoords);
+```
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1218.gif)
+
+Add freshnel to improve water effect.
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1218-1.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1218-2.gif)
+
+</details>
+
+<details>
+<summary>2025/12/19</summary>
+
+finished.
+
+Sky dome with texture spin:
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1219.gif)
+
+pick animals from water.
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1219-1.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1219-2.gif)
+
+![](https://github.com/Wang-Yuan0813/Warwick-CG/raw/master/Examples/1219-3.gif)
+
+</details>
